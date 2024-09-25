@@ -1,0 +1,11 @@
+[package]
+name = "EDConsistency"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+petgraph = "*"
+clap = { version = "4.4.8", features = [ "derive" ] }
+clap-verbosity-flag = "2.1.0"
+regex="*"
+itertools="*"

@@ -1,0 +1,10 @@
+@ h1
+{ get(init) -> post(h2, mid2) -> post(h3, mid3) -> post(h2, mid4) }
+@ h2
+{ get(mid2) -> write(x, 2) -> write(y,3) -> read(x, 2) }
+@ h3
+{ get(mid3) -> write(x, 3) -> write(y,4) -> read(y, 3) }
+{ get(mid4) -> read(y, 2) }
+{ get(mid5)
+-> write(x,3)
+-> read(y,4) }
