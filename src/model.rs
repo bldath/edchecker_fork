@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use petgraph::{csr::IndexType, data::{Build, FromElements}, graph::{DiGraph, NodeIndex}};
+use petgraph::{csr::IndexType, data::{Build, FromElements}, graph::{DiGraph, NodeIndex}, visit::Visitable, EdgeType};
 
 pub type Argument = String;
 
@@ -45,18 +45,38 @@ impl Debug for EPair {
     }
 }
 
+#[macro_export]
+macro_rules! epW {
+    ($var:ident, $val:ident) => {
+        EPair(_, _, Event::Write($var, $val))
+    };
+}
 
-#[derive(Clone, Copy, Debug)]
+#[macro_export]
+macro_rules! epR {
+    ($var:ident, $val:ident) => {
+        EPair(_, _, Event::Read($var, $val))
+    };
+}
+
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EdgeTp {
-    PO,
-    CO,
     RF,
+    CO,
+    PO,
+    EO,
+    PB,
     MO,
 }
 
-pub type IdxType = u32;
+impl EdgeType for EdgeTp {
+    fn is_directed() -> bool {
+        true
+    }
+}
 
-pub type EGraph = DiGraph<EPair, EdgeTp, IdxType>;
+pub type EGraph = DiGraph<EPair, EdgeTp>;
 
 #[derive(Clone, Debug)]
 pub struct Handler {

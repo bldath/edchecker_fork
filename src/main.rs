@@ -2,6 +2,7 @@ pub mod model;
 pub mod parser;
 pub mod output;
 pub mod preprocess;
+pub mod algorithms;
 
 use std::io;
 use std::fs;
