@@ -53,6 +53,7 @@ fn add_rf(g : &mut EGraph) {
 }
 
 fn add_co(g : &mut EGraph) {
+    return ();
     let new_edges = get_quadruples(&g, |x, y, z, w| {
         match (&g[x], &g[y], &g[z], &g[w]) {
             (epW!(var, val), epW!(var2,val2), epR!(var3, val3), epR!(var4, val4)) =>

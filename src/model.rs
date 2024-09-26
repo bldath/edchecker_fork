@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
-use petgraph::{csr::IndexType, data::{Build, FromElements}, graph::{DiGraph, NodeIndex}, visit::Visitable, EdgeType};
+use petgraph::{csr::IndexType, data::{Build, FromElements}, graph::{DiGraph, NodeIndex}, visit::{NodeRef, Visitable}, EdgeType};
+
 
 pub type Argument = String;
 
@@ -12,7 +13,7 @@ pub type Argument = String;
 //     Get,
 // }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Event {
     Write(Argument, Argument),
     Read(Argument, Argument),
@@ -36,7 +37,7 @@ pub struct Message {
     pub evs : Vec<Event>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct EPair(pub Argument, pub Argument, pub Event);
 
 impl Debug for EPair {
@@ -89,9 +90,13 @@ pub struct EGraphData {
     handlers : Vec<Handler>,
 }
 
-pub fn mk_graph(handlers : &Vec<Handler>) -> EGraph {
+
+pub struct ReadResult(pub Vec<Handler>, pub Vec<(EdgeTp, Event, Event)>);
+
+pub fn mk_graph(rr: &ReadResult) -> EGraph {
+    let ReadResult(hdl, edges) = rr;
     let mut d = EGraph::new();
-    handlers.iter().for_each(| h | {
+    hdl.iter().for_each(| h | {
         let mut last : Option<NodeIndex<u32>> = None;
         h.messages.iter().for_each(| msg | {
             let mut last : Option<NodeIndex<u32>> = None;
@@ -104,5 +109,15 @@ pub fn mk_graph(handlers : &Vec<Handler>) -> EGraph {
             });
         });
     });
-    return d
+
+    edges.iter().for_each(| e | {
+        let (et, from, to) = e;
+        if let Some(f) =  d.node_indices().find(|x| &d[*x].2 == from) {
+            if let Some(t) = d.node_indices().find(|x| &d[*x].2 == to) {
+                d.add_edge(f, t, et.clone());
+            } else { println!("Could not find event {:?} in graph:\n{:?}", to, d); }
+        } else { println!("Could not find event {:?} in graph:\n{:?}", from, d); }
+    });
+
+    d
 }
