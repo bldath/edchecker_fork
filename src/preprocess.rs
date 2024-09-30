@@ -2,16 +2,28 @@ use petgraph::{algo, csr::IndexType, graph::NodeIndex, visit::IntoNodeIdentifier
 
 use itertools::{iproduct, Itertools};
 
-use crate::{algorithms::po_rf_path, epR, epW, model::*};
+use crate::{algorithms::{deduce_eo, get_missing_totality, po_rf_path, try_extend}, epR, epW, model::*};
 
 pub fn preprocess(g : &mut EGraph) {
     add_pb(g);
     add_rf(g);
-    add_co(g);
+    //add_co(g); Is done manually..
+    let mt = get_missing_totality(g);
+    let v = mt.iter().map(| (et, x, y) | (et.clone(), g[*x].clone(), g[*y].clone())).collect_vec();
+    if v.len() > 0 {
+        println!("Missing totality: {:?}", v);
+    }
+
+    for q in mt {
+        try_extend(g, q);
+    }
+
+    deduce_eo(g);
+
 }
 
 
-pub fn get_pairs(g : &EGraph, rel : impl Fn(NodeIndex, NodeIndex) -> bool) -> Vec<(NodeIndex, NodeIndex)> {
+pub fn get_pairs<V, E>(g : &Graph<V, E>, rel : impl Fn(NodeIndex, NodeIndex) -> bool) -> Vec<(NodeIndex, NodeIndex)> {
     let product = iproduct!(g.node_indices(), g.node_indices());
     product.filter(| (x, y) | rel(*x, *y)).collect_vec()
 }
@@ -29,7 +41,7 @@ pub fn get_quadruples(g : &EGraph, rel : impl Fn(NodeIndex, NodeIndex, NodeIndex
 fn add_pb(g : &mut EGraph) {
     let new_edges: Vec<(NodeIndex, NodeIndex)> = get_pairs(&g, |x, y| -> bool {
         match (&g[x], &g[y]) {
-            (EPair(hdl, _, Event::Post(to, sent)), EPair(hdl2, _, Event::Get(gotten))) => sent == gotten,
+            (EPair(hdl, _, Event::Post(to, sent)), EPair(hdl2, gotten, Event::Get)) => sent == gotten,
             _ => false
         }
     });

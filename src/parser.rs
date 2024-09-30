@@ -36,7 +36,7 @@ pub fn list_to_message(l : &Vec<String>) -> Option<Message> {
 
     let sevs = events.map(| e | parse_event(e));
 
-    let head = vec![Event::Get(mid.into())];
+    let head = vec![Event::Get];
     let evs :Vec<Event> = head.into_iter().chain(sevs).collect();
 
     let m = Message {
