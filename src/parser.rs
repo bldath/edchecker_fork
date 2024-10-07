@@ -36,7 +36,7 @@ pub fn list_to_message(l : &Vec<String>) -> Option<Message> {
 
     let sevs = events.map(| e | parse_event(e));
 
-    let head = vec![Event::Get];
+    let head = vec![Event::Get(mid.clone().into())];
     let evs :Vec<Event> = head.into_iter().chain(sevs).collect();
 
     let m = Message {
@@ -82,7 +82,7 @@ pub fn parse_str(s : &String) -> ReadResult {
 
     let msg_regex = Regex::new(r"\{.*\}").unwrap();
 
-    let q = handler_strs.iter().map(|h| {
+    let q : Vec<Handler> = handler_strs.iter().map(|h| {
         let v : Vec<String> = h.split('{').map(|x| x.replace('}', "").trim().into()).collect();
         let hid = v[0].clone();
         let m : Vec<Vec<String>> = v.iter().skip(1).map(| ms | {
@@ -97,10 +97,16 @@ pub fn parse_str(s : &String) -> ReadResult {
         }
     }).collect();
 
-
     let edges = strs.iter().skip(1).flat_map(|seq| {
         parse_edges(seq)
-    }).collect_vec();
+    });
 
-    ReadResult(q, edges)
+    // Get EO from the order handlers appear in the trace
+    let eit = edges.chain(q.iter().flat_map(| hdl | {
+        hdl.messages.iter().tuples().map(| (Message { id, evs }, Message { id: i2, evs: e2 }) | {
+            (EO, evs[0].clone(), e2[0].clone())
+        })
+    })).collect_vec();
+
+    ReadResult(q, eit)
 }

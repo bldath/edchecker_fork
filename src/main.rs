@@ -7,6 +7,10 @@ pub mod preprocess;
 pub mod algorithms;
 pub mod msg_algorithms;
 
+pub mod do_edges;
+
+use do_edges::*;
+
 use std::io;
 use std::fs;
 use clap::Parser;
@@ -43,27 +47,13 @@ fn main() -> Result<(), std::io::Error> {
 
     println!("Cyclic: {}", is_cyclic_directed(&g));
 
-    let g2 = get_mgraph(&g);
+    write_dot(&g, cli.file.replace(".trace", ".msgs.trace"))?;
 
-    write_dot(&g2, cli.file.replace(".trace", ".msgs.trace"))?;
+    let g_multiset = multiset_do(g.clone());
+    let g_queue = queue_do(g.clone());
 
-    let tot = get_total_mo(&g2);
-
-    let mut vld = 0;
-    let mut vld_q = 0;
-    let mut cnt = 0;
-    for tord in tot {
-        cnt += 1;
-
-        let valid = extend_valid_multiset(&g, &tord);
-        if valid { vld += 1; }
-
-        let valid = extend_valid_queue(&g, &tord);
-        if valid { vld_q += 1; }
-    }
-    println!("Graph has {:?}/{:?} valid multiset extensions", vld, cnt);
-    println!("Graph has {:?}/{:?} valid queue extensions", vld_q, cnt);
-
+    println!("Cyclic multiset: {:?}", is_cyclic_directed(&g_multiset));
+    println!("Cyclic queue: {:?}", is_cyclic_directed(&g_queue));
 
     Ok(())
 }

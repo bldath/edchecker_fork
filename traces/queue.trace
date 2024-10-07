@@ -1,0 +1,5 @@
+@h1
+{ get(init) -> post(h2, mid1) -> post(h2, mid2) }
+@h2
+{ get(mid2) -> write(x,1) }
+{ get(mid1) -> write(y,1) }

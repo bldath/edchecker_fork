@@ -21,7 +21,7 @@ pub enum Event {
     Write(Argument, Argument),
     Read(Argument, Argument),
     Post(Argument, Argument),
-    Get,
+    Get(Argument),
 }
 
 
@@ -72,6 +72,7 @@ pub enum EdgeTp {
     EO,
     PB,
     MO,
+    DO,
 }
 
 impl EdgeType for EdgeTp {
@@ -143,7 +144,8 @@ pub fn get_mgraph(g : &EGraph) -> MGraph {
     let mut m = MGraph::new();
     for n in g.node_indices() {
         match &g[n] {
-            EPair(hdl1, mid, Event::Get) => {
+            EPair(hdl1, mid, Event::Get(mid2)) => {
+                assert!(mid == mid2);
                 m.add_node(MGraphE(true, n, mid.clone()));
             },
             EPair(hdl1, mid, Event::Post(th, mid2)) => {

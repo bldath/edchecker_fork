@@ -11,6 +11,13 @@ use crate::model::EdgeTp::*;
 //     }).into()
 // }
 
+pub fn add_edges<I>(g : &mut EGraph, it : I) where I : IntoIterator<Item = (EdgeTp, NodeIndex, NodeIndex)>{
+    for (et, from, to) in it {
+        g.add_edge(from, to, et);
+    }
+}
+
+
 pub fn po_rf_path(g : &EGraph, a : NodeIndex, b: NodeIndex) -> bool {
     let fg = EdgeFiltered::from_fn(&g, |e_ref| {
         vec![PO, RF].contains(e_ref.weight())
@@ -61,47 +68,47 @@ fn proj_graph(g: &EGraph, mevs: Vec<NodeIndex>, vec: Vec<EdgeTp>) -> EGraph {
     q
 }
 
-pub fn add_eo2(g : &mut EGraph, mid1 : &Argument, mid2 : &Argument) {
+// pub fn add_eo2(g : &mut EGraph, mid1 : &Argument, mid2 : &Argument) {
 
-    if let Some(e1) = last_evt(g, mid1) {
-        if let Some(e2) = g.node_indices().find(|x| {
-            match &g[*x] {
-                EPair(hdl1, m1, Event::Get) => {
-                    m1 == mid2
-                },
-                _ => false
-            }
-        }) {
-            g.add_edge(e1, e2, EO);
-        }
-    }
-}
+//     if let Some(e1) = last_evt(g, mid1) {
+//         if let Some(e2) = g.node_indices().find(|x| {
+//             match &g[*x] {
+//                 EPair(hdl1, m1, Event::Get) => {
+//                     m1 == mid2
+//                 },
+//                 _ => false
+//             }
+//         }) {
+//             g.add_edge(e1, e2, EO);
+//         }
+//     }
+// }
 
-pub fn add_eo(g : &mut EGraph, mid1 : &Argument, mid2 : &Argument) {
-    let message_1 = g.node_indices().filter(|x| &g[*x].1 == mid1).map(|x| x.clone()).collect_vec();
-    let message_2 = g.node_indices().filter(|x| &g[*x].1 == mid2).map(|x| x.clone()).collect_vec();
-    for (q1, q2) in iproduct!(message_1, message_2) {
-        g.add_edge(q1, q2, EO);
-    }
-}
+// pub fn add_eo(g : &mut EGraph, mid1 : &Argument, mid2 : &Argument) {
+//     let message_1 = g.node_indices().filter(|x| &g[*x].1 == mid1).map(|x| x.clone()).collect_vec();
+//     let message_2 = g.node_indices().filter(|x| &g[*x].1 == mid2).map(|x| x.clone()).collect_vec();
+//     for (q1, q2) in iproduct!(message_1, message_2) {
+//         g.add_edge(q1, q2, EO);
+//     }
+// }
 
 
-pub fn deduce_eo( g : &mut EGraph ) {
-    let q = get_pairs(g, |x, y| {
-        &g[x].0 == &g[y].0 && // Same handler
-        &g[x].1 != &g[y].1 && // Different message
-        has_path_connecting(&*g, x, y, None) // There is a path!
-    });
+// pub fn deduce_eo( g : &mut EGraph ) {
+//     let q = get_pairs(g, |x, y| {
+//         &g[x].0 == &g[y].0 && // Same handler
+//         &g[x].1 != &g[y].1 && // Different message
+//         has_path_connecting(&*g, x, y, None) // There is a path!
+//     });
 
-    let q2 = Itertools::unique_by(q.iter(), | a | {
-        let (a1, a2) = a;
-        (g[*a1].1.clone(), g[*a2].1.clone())
-    }).collect_vec();
+//     let q2 = Itertools::unique_by(q.iter(), | a | {
+//         let (a1, a2) = a;
+//         (g[*a1].1.clone(), g[*a2].1.clone())
+//     }).collect_vec();
 
-    for (x, y) in q2 {
-        let x1 = &g[*x].1.clone();
-        let y1 = &g[*y].1.clone();
-        println!("Deduced EO: ({:?}, {:?})", x1, y1);
-        add_eo2(g, x1, y1);
-    }
-}
+//     for (x, y) in q2 {
+//         let x1 = &g[*x].1.clone();
+//         let y1 = &g[*y].1.clone();
+//         println!("Deduced EO: ({:?}, {:?})", x1, y1);
+//         add_eo2(g, x1, y1);
+//     }
+// }

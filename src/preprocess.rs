@@ -2,7 +2,7 @@ use petgraph::{algo, csr::IndexType, graph::NodeIndex, visit::IntoNodeIdentifier
 
 use itertools::{iproduct, Itertools};
 
-use crate::{algorithms::{deduce_eo, get_missing_totality, po_rf_path, try_extend}, epR, epW, model::*};
+use crate::{algorithms::{get_missing_totality, po_rf_path, try_extend}, epR, epW, model::*};
 
 pub fn preprocess(g : &mut EGraph) {
     add_pb(g);
@@ -18,7 +18,7 @@ pub fn preprocess(g : &mut EGraph) {
         try_extend(g, q);
     }
 
-    deduce_eo(g);
+    //deduce_eo(g);
 
 }
 
@@ -28,20 +28,33 @@ pub fn get_pairs<V, E>(g : &Graph<V, E>, rel : impl Fn(NodeIndex, NodeIndex) -> 
     product.filter(| (x, y) | rel(*x, *y)).collect_vec()
 }
 
-pub fn get_triples(g : &EGraph, rel : impl Fn(NodeIndex, NodeIndex, NodeIndex) -> bool) -> Vec<(NodeIndex, NodeIndex, NodeIndex)> {
+pub fn get_triples<V, E>(g : &Graph<V, E>, rel : impl Fn(NodeIndex, NodeIndex, NodeIndex) -> bool) -> Vec<(NodeIndex, NodeIndex, NodeIndex)> {
     let product = iproduct!(g.node_indices(), g.node_indices(), g.node_indices());
     product.filter(|(x,y,z)| rel(*x, *y, *z)).collect_vec()
 }
 
-pub fn get_quadruples(g : &EGraph, rel : impl Fn(NodeIndex, NodeIndex, NodeIndex, NodeIndex) -> bool) -> Vec<(NodeIndex, NodeIndex, NodeIndex, NodeIndex)> {
+pub fn get_quadruples<V, E>(g : &Graph<V, E>, rel : impl Fn(NodeIndex, NodeIndex, NodeIndex, NodeIndex) -> bool) -> Vec<(NodeIndex, NodeIndex, NodeIndex, NodeIndex)> {
     let product = iproduct!(g.node_indices(), g.node_indices(), g.node_indices(), g.node_indices());
     product.filter(|(x,y,z,w)|rel(*x, *y, *z, *w)).collect_vec()
+}
+
+
+pub fn pair_fmap<V, E, Q>(g : &Graph<V, E>, f: impl Fn(NodeIndex, NodeIndex) -> Option<Q>) -> Vec<Q> {
+    iproduct!(g.node_indices(), g.node_indices()).filter_map(| (x, y) | f(x, y)).collect_vec()
+}
+
+pub fn triple_fmap<V, E, Q>(g : &Graph<V, E>, f: impl Fn(NodeIndex, NodeIndex, NodeIndex) -> Option<Q>) -> Vec<Q> {
+    iproduct!(g.node_indices(), g.node_indices(), g.node_indices()).filter_map(| (x, y, z) | f(x, y, z)).collect_vec()
+}
+
+pub fn quad_fmap<V, E, Q>(g : &Graph<V, E>, f: impl Fn(NodeIndex, NodeIndex, NodeIndex, NodeIndex) -> Option<Q>) -> Vec<Q> {
+    iproduct!(g.node_indices(), g.node_indices(), g.node_indices(), g.node_indices()).filter_map(| (x, y, z, w) | f(x, y, z, w)).collect_vec()
 }
 
 fn add_pb(g : &mut EGraph) {
     let new_edges: Vec<(NodeIndex, NodeIndex)> = get_pairs(&g, |x, y| -> bool {
         match (&g[x], &g[y]) {
-            (EPair(hdl, _, Event::Post(to, sent)), EPair(hdl2, gotten, Event::Get)) => sent == gotten,
+            (EPair(hdl, _, Event::Post(to, sent)), EPair(hdl2, gotten, Event::Get(mid))) => sent == gotten,
             _ => false
         }
     });
