@@ -6,10 +6,15 @@ pub mod output;
 pub mod preprocess;
 pub mod algorithms;
 pub mod msg_algorithms;
+pub mod eo_edges;
+
 
 pub mod do_edges;
 
+use algorithms::add_edges;
 use do_edges::*;
+use eo_edges::get_eod;
+use eo_edges::remove_eo;
 
 use std::io;
 use std::fs;
@@ -49,11 +54,19 @@ fn main() -> Result<(), std::io::Error> {
 
     write_dot(&g, cli.file.replace(".trace", ".msgs.trace"))?;
 
+    let eod_edges = get_eod(&g);
+    let mut g = remove_eo(g);
+    add_edges(&mut g, eod_edges);
+
     let g_multiset = multiset_do(g.clone());
     let g_queue = queue_do(g.clone());
+    let g_stack = stack_do(g.clone());
+    let g_reg = reg_do(g.clone());
 
     println!("Cyclic multiset: {:?}", is_cyclic_directed(&g_multiset));
     println!("Cyclic queue: {:?}", is_cyclic_directed(&g_queue));
+    println!("Cyclic stack: {:?}", is_cyclic_directed(&g_stack));
+    println!("Cyclic reg: {:?}", is_cyclic_directed(&g_reg));
 
     Ok(())
 }

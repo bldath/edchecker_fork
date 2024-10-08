@@ -64,7 +64,7 @@ macro_rules! epR {
 }
 
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EdgeTp {
     RF,
     CO,
@@ -73,6 +73,8 @@ pub enum EdgeTp {
     PB,
     MO,
     DO,
+    FR,
+    EOD
 }
 
 impl EdgeType for EdgeTp {
