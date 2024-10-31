@@ -1,5 +1,10 @@
 @h1
 { get(init) -> post(h2, mid1) -> post(h2, mid2) }
 @h2
-{ get(mid2) -> write(x,1) }
-{ get(mid1) -> write(y,1) }
+{ get(mid2) -> write(x,1) -> post(h3,mid3) }
+{ get(mid1) -> write(x,2) -> post(h3,mid4) }
+@h3
+{ get(mid3) -> read(x,2) }
+{ get(mid4) -> read(x,1) }
+$(CO)
+write(x,1) -> write(x,2)
