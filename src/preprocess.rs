@@ -1,4 +1,5 @@
 use petgraph::{algo, csr::IndexType, graph::NodeIndex, visit::IntoNodeIdentifiers, EdgeType, Graph};
+use crate::model::EdgeTp::*;
 
 use itertools::{iproduct, Itertools};
 
@@ -7,6 +8,7 @@ use crate::{algorithms::{get_missing_totality, po_rf_path, try_extend}, eo_edges
 pub fn preprocess(g : &mut EGraph) {
     add_pb(g);
     add_rf(g);
+    add_fr(g);
     //add_co(g); Is done manually..
     let mt = get_missing_totality(g);
     let v = mt.iter().map(| (et, x, y) | (et.clone(), g[*x].clone(), g[*y].clone())).collect_vec();
@@ -63,6 +65,20 @@ fn add_pb(g : &mut EGraph) {
 
     for e in new_edges {
         g.add_edge(e.0, e.1, EdgeTp::PB);
+    }
+}
+
+fn add_fr(g : &mut EGraph) {
+    let new_edges = triple_fmap(&g, | x, y, z, | {
+        if let Some(e1) = g.edges_connecting(y,x).find(|e| *e.weight() == RF) {
+            if let Some(e2) = g.edges_connecting(y, z).find(|e| *e.weight() == CO) {
+                return Some((FR, x, z))
+            }
+        }
+        None
+    });
+    for e in new_edges {
+        g.add_edge(e.1, e.2, e.0);
     }
 }
 
