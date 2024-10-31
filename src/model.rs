@@ -22,6 +22,7 @@ pub enum Event {
     Read(Argument, Argument),
     Post(Argument, Argument),
     Get(Argument),
+    Done(Argument), // Final event in a message to make it easier to do stuff with EO
 }
 
 
@@ -64,7 +65,7 @@ macro_rules! epR {
 }
 
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EdgeTp {
     RF,
     CO,
@@ -128,6 +129,9 @@ pub fn mk_graph(rr: &ReadResult) -> EGraph {
                 }
                 last = Some(n);
             });
+            // Add a Done event from which to connect EO later.
+            let np = d.add_node(EPair(h.id.clone(), msg.id.clone(), Event::Done(msg.id.clone())));
+            d.add_edge(last.unwrap(), np, EdgeTp::PO);
         });
     });
 
@@ -166,6 +170,6 @@ pub fn get_mgraph(g : &EGraph) -> MGraph {
             }
         }
     }
-    transitive_closure(&mut m);
+    transitive_closure(&mut m, ());
     m
 }

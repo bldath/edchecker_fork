@@ -3,31 +3,34 @@ use std::collections::VecDeque;
 use itertools::{Combinations, CombinationsWithReplacement, Itertools};
 use petgraph::algo::{has_path_connecting, is_cyclic_directed, toposort, Cycle};
 use petgraph::graph::NodeIndex;
+use petgraph::Graph;
 use crate::write_dot;
 use crate::{model::{EGraph, EdgeTp::*, MGraph, MGraphE}, preprocess::get_pairs};
 
-
-pub fn transitive_closure(g : &mut MGraph) {
+pub fn transitive_closure<V, E>(g : &mut Graph<V, E>, ins_val : E)
+where
+    E : Clone
+{
     let q = get_pairs(&g, |x, y| {
         x != y && !(g.contains_edge(x, y) || g.contains_edge(y, x))
     });
     let mut m = false;
     for (q1, q2) in q {
         if has_path_connecting(&*g, q1, q2, None) {
-            g.add_edge(q1, q2, ());
+            g.add_edge(q1, q2, ins_val.clone());
             m = true;
         } else if has_path_connecting(&*g, q2, q1, None) {
-            g.add_edge(q2, q1, ());
+            g.add_edge(q2, q1, ins_val.clone());
             m = true;
         }
     }
     if m {
         //println!("Modified once");
-        transitive_closure(g)
+        transitive_closure(g, ins_val)
     }
 }
 
-pub fn flip_iterator<A>(v: Vec<(A,A)>) -> impl Iterator<Item = Vec<(A, A)>>  where A : Clone {
+pub fn flip_iterator<A>(v: &Vec<(A,A)>) -> impl Iterator<Item = Vec<(A, A)>> + '_ where A : Clone {
     vec![true, false].into_iter().combinations_with_replacement(v.len()).map(move |q| {
         v.iter().zip(q.iter()).map(| ((a, b), flip) | {
             if *flip { (b.clone(), a.clone()) } else { (a.clone(), b.clone()) }
@@ -35,20 +38,20 @@ pub fn flip_iterator<A>(v: Vec<(A,A)>) -> impl Iterator<Item = Vec<(A, A)>>  whe
     })
 }
 
-pub fn get_total_mo(g : &MGraph) -> impl Iterator<Item = MGraph> {
-    let v = get_pairs(g, | x, y | {
-        x < y && !(g.contains_edge(x, y) || g.contains_edge(y, x))
-    });
-    let tmp = g.clone();
+// pub fn get_total_mo(g : &MGraph) -> impl Iterator<Item = MGraph> {
+//     let v = get_pairs(g, | x, y | {
+//         x < y && !(g.contains_edge(x, y) || g.contains_edge(y, x))
+//     });
+//     let tmp = g.clone();
 
-    flip_iterator(v).map(move | bv | {
-        let mut ng = tmp.clone();
-        for (a, b) in bv {
-            ng.add_edge(a, b, ());
-        }
-        ng
-    })
-}
+//     flip_iterator(&v).map(move | bv | {
+//         let mut ng = tmp.clone();
+//         for (a, b) in bv {
+//             ng.add_edge(a, b, ());
+//         }
+//         ng
+//     })
+// }
 
 pub fn extend_graph(g : &EGraph, mg : &MGraph) -> EGraph {
     let mut gp = g.clone();

@@ -2,7 +2,7 @@ use petgraph::{algo, csr::IndexType, graph::NodeIndex, visit::IntoNodeIdentifier
 
 use itertools::{iproduct, Itertools};
 
-use crate::{algorithms::{get_missing_totality, po_rf_path, try_extend}, epR, epW, model::*};
+use crate::{algorithms::{get_missing_totality, po_rf_path, try_extend}, eo_edges::{insert_forced_eo, insert_forced_mo, missing_eo}, epR, epW, model::*};
 
 pub fn preprocess(g : &mut EGraph) {
     add_pb(g);
@@ -18,6 +18,8 @@ pub fn preprocess(g : &mut EGraph) {
         try_extend(g, q);
     }
 
+    insert_forced_eo(g);
+    insert_forced_mo(g);
     //deduce_eo(g);
 
 }

@@ -102,11 +102,10 @@ pub fn parse_str(s : &String) -> ReadResult {
     });
 
     // Get EO from the order handlers appear in the trace
-    let eit = edges.chain(q.iter().flat_map(| hdl | {
-        hdl.messages.iter().tuples().map(| (Message { id, evs }, Message { id: i2, evs: e2 }) | {
-            (EO, evs[0].clone(), e2[0].clone())
-        })
-    })).collect_vec();
-
-    ReadResult(q, eit)
+    // let eit = edges.chain(q.iter().flat_map(| hdl | {
+    //     hdl.messages.iter().tuples().map(| (Message { id, evs }, Message { id: i2, evs: e2 }) | {
+    //         (EO, evs[0].clone(), e2[0].clone())
+    //     })
+    // })).collect_vec();
+    ReadResult(q, edges.collect_vec())
 }

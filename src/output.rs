@@ -1,4 +1,4 @@
-use petgraph::{dot::Dot, Graph};
+use petgraph::{dot::{Config, Dot}, Graph};
 use std::{fs::File, io::{self, Error, Write}};
 
 pub fn write_dot<T , E >(graph : &Graph<T,E>, filename: String) -> Result<(), Error> where T: std::fmt::Debug, E: std::fmt::Debug {
