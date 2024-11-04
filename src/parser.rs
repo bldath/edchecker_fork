@@ -30,7 +30,7 @@ pub fn list_to_message(l : &Vec<String>) -> Option<Message> {
     let get_msg = &l[0];
     let events = l.iter().skip(1);
 
-    let get_regex = Regex::new(r"get\((.*)\)").unwrap();
+    let get_regex = Regex::new(r"[gG]et\((.*)\)").unwrap();
 
     let mid = get_regex.captures(get_msg).unwrap().get(1)?.as_str();
 
