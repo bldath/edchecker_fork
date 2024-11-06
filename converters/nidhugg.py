@@ -115,8 +115,11 @@ if __name__=="__main__":
         traces = txt.split("EventTraceBuilder (debug print)")
         print(f"{len(traces)} traces")
 
+
     basename = sys.argv[1][0:-4] + "/"
+    outdir = sys.argv[2]
     os.makedirs(basename, exist_ok=True)
     for t in traces[1:]:
         h = get_hist(t)
-        write_trace(basename + "trace", *h)
+        os.makedirs(outdir + "/" + basename, exist_ok=True)
+        write_trace(outdir + "/" + basename + "trace", *h)

@@ -22,6 +22,7 @@ use eo_edges::remove_eo;
 
 use std::io;
 use std::fs;
+use std::time::Instant;
 use clap::Parser;
 use clap_verbosity_flag::Verbosity;
 use model::get_mgraph;
@@ -56,9 +57,12 @@ fn main() -> Result<()> {
         .format(|buf, record| writeln!(buf, "{}", record.args()))
         .init();
 
+    let start = Instant::now();
     let q = read_file(cli.file.clone());
     let mut g = mk_graph(&q);
     preprocess(&mut g);
+    let parsed = Instant::now();
+    println!("Parsing: {:?}µs", (parsed-start).as_micros());
     if cli.draw {
         println!("Printing dot!");
         write_dot(&g, cli.file.clone())?;
@@ -66,7 +70,8 @@ fn main() -> Result<()> {
 
     let missing_eo = missing_eo(&g);
     let missing_mo = missing_mo(&g);
-
+    let enumerated = Instant::now();
+    println!("Enumerating: {:?}µs", (enumerated-parsed).as_micros());
     // println!("Missing EO: {:?}", missing_eo);
     // println!("Missing MO: {:?}", missing_mo);
 
@@ -94,7 +99,9 @@ fn main() -> Result<()> {
             r_ok |= !is_cyclic_directed(&g_reg);
         }
     }
-
+    let done = Instant::now();
+    println!("Check: {:?}µs", (done - enumerated).as_micros());
+    println!("Total: {:?}µs", (done - start).as_micros());
     println!("{} cases.", n);
 
     println!("Multiset: {:?}", ms_ok);

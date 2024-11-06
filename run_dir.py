@@ -8,7 +8,8 @@ results = dd(lambda: [])
 
 sp.run(["cargo", "build", "--release"])
 
-for i in glob.glob("../nidhugg/benchmarks/event-driven/**/*.trace", recursive=True):
+for i in glob.glob("../nidhugg/traces/**/*.trace", recursive=True):
     p = Path(i)
     print(p.parent)
-    sp.run(["./target/release/EDConsistency", p])
+    with open(str(p) + ".out", "w") as f:
+        sp.run(["./target/release/EDConsistency", p], stdout=f)
