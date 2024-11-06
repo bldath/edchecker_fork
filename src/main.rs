@@ -35,6 +35,8 @@ use petgraph::algo::is_cyclic_directed;
 use petgraph::dot::Dot;
 use preprocess::preprocess;
 
+use io::*;
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about=None)]
 struct Cli {
@@ -46,8 +48,14 @@ struct Cli {
 }
 
 
-fn main() -> Result<(), std::io::Error> {
+fn main() -> Result<()> {
     let cli = Cli::parse();
+
+    env_logger::Builder::new()
+        .filter_level(cli.verbosity.log_level_filter())
+        .format(|buf, record| writeln!(buf, "{}", record.args()))
+        .init();
+
     let q = read_file(cli.file.clone());
     let mut g = mk_graph(&q);
     preprocess(&mut g);
@@ -59,8 +67,8 @@ fn main() -> Result<(), std::io::Error> {
     let missing_eo = missing_eo(&g);
     let missing_mo = missing_mo(&g);
 
-    println!("Missing EO: {:?}", missing_eo);
-    println!("Missing MO: {:?}", missing_mo);
+    // println!("Missing EO: {:?}", missing_eo);
+    // println!("Missing MO: {:?}", missing_mo);
 
     let mut ms_ok = false;
     let mut q_ok = false;

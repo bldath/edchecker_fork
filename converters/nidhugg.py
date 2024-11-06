@@ -21,6 +21,10 @@ hdl_of_msg = {}
 
 def get_hist(trace):
     global var_ctrs, var_ctr, var_ids, hdl_of_msg
+    var_ctrs.clear()
+    var_ctr = 0
+    var_ids.clear()
+    hdl_of_msg.clear()
 
     def get_var(s):
         global var_ctr, var_ids
@@ -94,11 +98,12 @@ def write_trace(fn, co_var, evs):
                     s += " -> " + op + "(" + str(a1) + "," + str(a2) + ")"
                 s += "}\n"
                 f.write(s)
-        if any(len(v) > 0 for (q, v) in co_var.items()):
+        if any(len(v) > 1 for (q, v) in co_var.items()):
             f.write("$(CO)\n")
             for (var, evs) in co_var.items():
                 if len(evs) > 1:
                     f.write(" -> ".join(evs))
+                    f.write(";\n")
 
 
 if __name__=="__main__":

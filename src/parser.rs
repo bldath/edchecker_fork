@@ -1,6 +1,7 @@
 use std::{fs, iter::{self, Chain}, str::FromStr};
 use itertools::Itertools;
 use regex::Regex;
+use log::{debug, info};
 
 use crate::model::{self, EGraph, EPair, EdgeTp, EdgeTp::*, Event, Handler, Message, ReadResult};
 
@@ -12,29 +13,32 @@ pub fn read_file(filename : String) -> ReadResult {
 }
 
 
-pub fn parse_event(s : &String) -> Event {
-    let ev_regex = Regex::new(r"(\w+)\((.*),(.*)\)").unwrap();
-    let c = ev_regex.captures(s).unwrap();
-    let op : &str = c.get(1).unwrap().as_str();
-    let a1 : String = c.get(2).unwrap().as_str().into();
-    let a2 : String = c.get(3).unwrap().as_str().into();
-    match op {
-        "write" => Some(Event::Write(a1, a2)),
-        "read" => Some(Event::Read(a1, a2)),
-        "post" => Some(Event::Post(a1, a2)),
-        _ => None,
-    }.unwrap()
+pub fn parse_event(s : &String) -> Option<Event> {
+    let ev_regex = Regex::new(r"(\w+)\(\s*(\w*)\s*,\s*([\w\.]*)\s*\)").unwrap();
+    if let Some(c) = ev_regex.captures(s) {
+        let op : &str = c.get(1).unwrap().as_str();
+        let a1 : String = c.get(2).unwrap().as_str().into();
+        let a2 : String = c.get(3).unwrap().as_str().into();
+        return match op {
+            "write" => Some(Event::Write(a1, a2)),
+            "read" => Some(Event::Read(a1, a2)),
+            "post" => Some(Event::Post(a1, a2)),
+            _ => None,
+        }
+    }
+    debug!("Unmatched: {}", s);
+    None
 }
 
 pub fn list_to_message(l : &Vec<String>) -> Option<Message> {
     let get_msg = &l[0];
     let events = l.iter().skip(1);
 
-    let get_regex = Regex::new(r"[gG]et\((.*)\)").unwrap();
+    let get_regex = Regex::new(r"[gG]et\(([\w\.]*)\)").unwrap();
 
     let mid = get_regex.captures(get_msg).unwrap().get(1)?.as_str();
 
-    let sevs = events.map(| e | parse_event(e));
+    let sevs = events.filter_map(| e | parse_event(e));
 
     let head = vec![Event::Get(mid.into())];
     let evs :Vec<Event> = head.into_iter().chain(sevs).collect();
@@ -62,14 +66,20 @@ pub fn parse_edges(s : &String) -> Vec<(EdgeTp, Event, Event)> {
 
     let et = parse_edgetp(&s[1..3]).unwrap();
 
-    let q = String::from_str(&s[3..]).unwrap();
+    let q = String::from_str(&s[4..]).unwrap();
 
     let chains  = q.split(';').map(|x| x.split("->").map(|x| x.to_string()).collect_vec()).collect_vec();
+    // TODO make CO total by (in addition to x_i CO x_i+1 add x_m CO x_i for all m < i)
+    info!("Edges: {:?}", chains);
+
 
     chains.iter().flat_map(| c | {
-        c.iter().map(|x| parse_event(x)).tuple_windows().map(| (e1, e2) | {
-            (et, e1, e2)
-        })
+        c.into_iter()
+         .filter_map(|x| parse_event(x))
+         .combinations(2)
+         .map(| ls | {
+             (et, ls[0].clone(), ls[1].clone())
+         })
     }).collect_vec()
 }
 

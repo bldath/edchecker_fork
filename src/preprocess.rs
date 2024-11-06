@@ -102,8 +102,7 @@ fn add_co(g : &mut EGraph) {
             (epW!(var, val), epW!(var2,val2), epR!(var3, val3), epR!(var4, val4)) =>
                 var == var2 && var2 == var3 && var3 == var4 &&
                 val == val3 && val2 == val4 && val != val2 &&
-                po_rf_path(&g, z, w)
-                ,
+                po_rf_path(&g, z, w),
             _ => false
         }
     });
