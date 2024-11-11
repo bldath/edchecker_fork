@@ -1,0 +1,12 @@
+@h-1
+{ get(0.1) -> post(h2,0.1.0)}
+{ get(0.2) -> post(h2,0.2.0)}
+{ get(0.3) -> post(h2,0.3.0)}
+{ get(0.4) -> write(x10,2)}
+@h2
+{ get(0.3.0) -> write(x10,1) -> write(x14,1)}
+{ get(0.2.0) -> write(x14,2)}
+{ get(0.1.0) -> write(x14,3)}
+$(CO)
+write(x10, 1) -> write(x10, 2);
+write(x14, 1) -> write(x14, 2) -> write(x14, 3);

@@ -1,0 +1,5 @@
+@h-1
+{ get(0.1) -> write(x7,1)}
+{ get(0.0) -> write(x7,2)}
+$(CO)
+write(x7, 1) -> write(x7, 2);

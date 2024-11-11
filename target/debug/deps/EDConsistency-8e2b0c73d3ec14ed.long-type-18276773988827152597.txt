@@ -1,0 +1,1 @@
+std::iter::Chain<std::vec::IntoIter<model::Event>, Map<Skip<std::slice::Iter<'_, std::string::String>>, {closure@src/parser.rs:38:27: 38:32}>>

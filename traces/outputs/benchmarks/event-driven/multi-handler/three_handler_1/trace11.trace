@@ -1,0 +1,11 @@
+@h-1
+{ get(0) -> post(h2,0.3) -> post(h4,0.4) -> post(h6,0.5) -> post(h4,0.6) -> post(h6,0.7)}
+@h6
+{ get(0.5) -> write(x5,1) -> write(x14,1)}
+{ get(0.7) -> write(x18,1)}
+@h4
+{ get(0.4) -> write(x11,1) -> write(x14,3)}
+@h2
+{ get(0.3) -> write(x14,2)}
+$(CO)
+write(x14, 1) -> write(x14, 2) -> write(x14, 3);

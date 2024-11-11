@@ -1,0 +1,8 @@
+@h1
+{get(m10) -> write(y,1) -> read(y, 2)}
+{get(m12) -> write(y,2)}
+@h2
+{get(m20) -> write(z, 1) -> read(z, 2)}
+{get(m21) -> write(z, 2)}
+@h3
+{get(m30) -> read(a, 1)}
