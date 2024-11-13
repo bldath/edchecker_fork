@@ -19,6 +19,7 @@ use eo_edges::missing_eo;
 use eo_edges::missing_mo;
 use eo_edges::mo_cases;
 use eo_edges::remove_eo;
+use itertools::Itertools;
 
 use std::io;
 use std::fs;
@@ -102,6 +103,10 @@ fn main() -> Result<()> {
     let done = Instant::now();
     println!("Check: {:?}µs", (done - enumerated).as_micros());
     println!("Total: {:?}µs", (done - start).as_micros());
+    println!("Handlers: {:?}", q.0.len());
+    let num_mess : usize = q.0.iter().map(|x| x.messages.len()).collect_vec().iter().sum();
+    println!("Messages: {:?}", num_mess);
+
     println!("{} cases.", n);
 
     println!("Multiset: {:?}", ms_ok);
