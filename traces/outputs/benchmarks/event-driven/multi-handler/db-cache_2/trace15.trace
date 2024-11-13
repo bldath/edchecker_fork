@@ -1,4 +1,0 @@
-@h-1
-{ get(0) -> write(x6,1)}
-{ get(0.2) -> write(x10,1) -> post(h2,0.2.0) -> post(h2,0.2.1) -> post(h2,0.2.2) -> post(h2,0.2.3)}
-{ get(0.3) -> post(h4,0.3.0) -> post(h4,0.3.1) -> post(h4,0.3.2) -> post(h4,0.3.3)}

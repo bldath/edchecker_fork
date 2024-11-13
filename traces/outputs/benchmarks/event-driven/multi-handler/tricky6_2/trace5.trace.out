@@ -1,9 +1,0 @@
-Parsing: 31856µs
-Enumerating: 955µs
-Check: 191938µs
-Total: 224750µs
-21 cases.
-Multiset: true
-Queue: true
-Stack: true
-Reg: true

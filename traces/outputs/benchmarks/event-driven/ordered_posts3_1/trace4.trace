@@ -1,8 +1,0 @@
-@h-1
-{ get(0.1) -> post(h2,0.1.0) -> write(x6,1)}
-{ get(0.2) -> post(h2,0.2.0)}
-@h2
-{ get(0.1.0) -> write(x6,2)}
-{ get(0.2.0) -> write(x6,3)}
-$(CO)
-write(x6, 1) -> write(x6, 2) -> write(x6, 3);
