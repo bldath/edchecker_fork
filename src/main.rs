@@ -8,10 +8,10 @@ pub mod algorithms;
 pub mod msg_algorithms;
 pub mod eo_edges;
 
-
 pub mod do_edges;
 
 use algorithms::add_edges;
+use clap::ValueEnum;
 use do_edges::*;
 use eo_edges::eo_cases;
 use eo_edges::get_eod;
@@ -20,6 +20,7 @@ use eo_edges::missing_mo;
 use eo_edges::mo_cases;
 use eo_edges::remove_eo;
 use itertools::Itertools;
+use model::EGraph;
 
 use std::io;
 use std::fs;
@@ -39,14 +40,57 @@ use preprocess::preprocess;
 
 use io::*;
 
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum ADT {
+    Multiset,
+    Queue,
+    Stack,
+    Register
+}
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about=None)]
 struct Cli {
+    /// Input file
     file: String,
+    /// ADT to check consistency for
+    #[arg(value_enum)]
+    adt: ADT,
+
+    /// Print output graphs to dotfiles with name <FILE>.dot and <FILE>_ok.dot if check succeeds.
     #[arg(short, long)]
     draw: bool,
+
+    /// Verbosity for more debugging output. The more -v's the more verbose. -vvvvvvvvvvvvvvvvvvvvvvvvvvvv
     #[command(flatten)]
     verbosity: Verbosity,
+}
+
+fn run_check(g : EGraph, adt : ADT) -> Option<EGraph> {
+    let missing_eo = missing_eo(&g);
+    let missing_mo = missing_mo(&g);
+    for g in eo_cases(&g, &missing_eo) {
+        match adt {
+            ADT::Multiset => {
+                let g_multiset = multiset_do(g);
+            },
+            _ => {
+                for gp in mo_cases(&g, &missing_mo) {
+                    if let Some(q) = match adt {
+                        ADT::Queue => Some(queue_do(gp)),
+                        ADT::Stack => Some(stack_do(gp)),
+                        ADT::Register => Some(reg_do(gp)),
+                        _ => None
+                    } {
+                        if !is_cyclic_directed(&q) {
+                            return Some(q)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 
@@ -65,54 +109,31 @@ fn main() -> Result<()> {
     let parsed = Instant::now();
     println!("Parsing: {:?}µs", (parsed-start).as_micros());
     if cli.draw {
-        println!("Printing dot!");
+        println!("Printing dot! {:?}.dot", cli.file);
         write_dot(&g, cli.file.clone())?;
     }
 
-    let missing_eo = missing_eo(&g);
-    let missing_mo = missing_mo(&g);
-    let enumerated = Instant::now();
-    println!("Enumerating: {:?}µs", (enumerated-parsed).as_micros());
-    // println!("Missing EO: {:?}", missing_eo);
-    // println!("Missing MO: {:?}", missing_mo);
-
-    let mut ms_ok = false;
-    let mut q_ok = false;
-    let mut s_ok = false;
-    let mut r_ok = false;
-
-    let mut n = 0;
-    for g in eo_cases(&g, &missing_eo) {
-        let g_multiset = multiset_do(g.clone());
-        for g in mo_cases(&g, &missing_mo) {
-            n += 1;
-            let eod_edges = get_eod(&g);
-            let mut g = remove_eo(g);
-            add_edges(&mut g, eod_edges);
-
-            let g_queue = queue_do(g.clone());
-            let g_stack = stack_do(g.clone());
-            let g_reg = reg_do(g.clone());
-
-            ms_ok |= !is_cyclic_directed(&g_multiset);
-            q_ok |= !is_cyclic_directed(&g_queue);
-            s_ok |= !is_cyclic_directed(&g_stack);
-            r_ok |= !is_cyclic_directed(&g_reg);
+    let res = run_check(g, cli.adt);
+    let done = Instant::now();
+    println!("Check: {:?}µs", (done - parsed).as_micros());
+    println!("{:?}: {:?}", cli.adt, res.is_some());
+    if let Some(q) = res {
+        if cli.draw {
+            println!("Printing dot {:?}_ok.dot", cli.file);
+            write_dot(&q, (cli.file.clone() + "_ok").into());
         }
     }
-    let done = Instant::now();
-    println!("Check: {:?}µs", (done - enumerated).as_micros());
-    println!("Total: {:?}µs", (done - start).as_micros());
-    println!("Handlers: {:?}", q.0.len());
+    // println!("Total: {:?}µs", (done - start).as_micros());
+    // println!("Handlers: {:?}", q.0.len());
     let num_mess : usize = q.0.iter().map(|x| x.messages.len()).collect_vec().iter().sum();
-    println!("Messages: {:?}", num_mess);
+    // println!("Messages: {:?}", num_mess);
 
-    println!("{} cases.", n);
+    // println!("{} cases.", n);
 
-    println!("Multiset: {:?}", ms_ok);
-    println!("Queue: {:?}", q_ok);
-    println!("Stack: {:?}", s_ok);
-    println!("Reg: {:?}", r_ok);
+    // println!("Multiset: {:?}", ms_ok);
+    // println!("Queue: {:?}", q_ok);
+    // println!("Stack: {:?}", s_ok);
+    // println!("Reg: {:?}", r_ok);
 
     Ok(())
 }
