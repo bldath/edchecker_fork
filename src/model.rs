@@ -1,10 +1,16 @@
-use std::{fmt::Debug, path};
+use std::{collections::HashMap, fmt::Debug, path};
 
 use itertools::iproduct;
-use petgraph::{algo::has_path_connecting, csr::IndexType, data::{Build, FromElements}, graph::{DiGraph, NodeIndex}, visit::{NodeRef, Visitable}, EdgeType};
+use petgraph::{
+    algo::has_path_connecting,
+    csr::IndexType,
+    data::{Build, FromElements},
+    graph::{DiGraph, NodeIndex},
+    visit::{NodeRef, Visitable},
+    EdgeType,
+};
 
 use crate::{msg_algorithms::transitive_closure, preprocess::get_pairs};
-
 
 pub type Argument = String;
 
@@ -25,7 +31,6 @@ pub enum Event {
     Done(Argument), // Final event in a message to make it easier to do stuff with EO
 }
 
-
 // impl std::fmt::Debug for Event {
 //     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 //         match self {
@@ -34,11 +39,10 @@ pub enum Event {
 //     }
 // }
 
-
 #[derive(Clone, Debug)]
 pub struct Message {
     pub id: Argument,
-    pub evs : Vec<Event>,
+    pub evs: Vec<Event>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -64,7 +68,6 @@ macro_rules! epR {
     };
 }
 
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EdgeTp {
     RF,
@@ -75,7 +78,7 @@ pub enum EdgeTp {
     MO,
     DO,
     FR,
-    EOD
+    EOD,
 }
 
 impl EdgeType for EdgeTp {
@@ -86,9 +89,8 @@ impl EdgeType for EdgeTp {
 
 pub type EGraph = DiGraph<EPair, EdgeTp>;
 
-
 #[derive(Clone, PartialEq, Eq)]
-pub struct MGraphE(pub bool,pub NodeIndex,pub Argument);
+pub struct MGraphE(pub bool, pub NodeIndex, pub Argument);
 
 impl Debug for MGraphE {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -105,59 +107,79 @@ pub type MGraph = DiGraph<MGraphE, ()>;
 #[derive(Clone, Debug)]
 pub struct Handler {
     pub id: Argument,
-    pub messages: Vec<Message>
-}
-
-#[derive(Clone, Debug)]
-pub struct EGraphData {
-    handlers : Vec<Handler>,
+    pub messages: Vec<Message>,
 }
 
 pub struct ReadResult(pub Vec<Handler>, pub Vec<(EdgeTp, Event, Event)>);
 
-pub fn mk_graph(rr: &ReadResult) -> EGraph {
+pub type HandlerData = HashMap<Argument, Vec<NodeIndex>>;
+pub type EGraphData = HashMap<Argument, HandlerData>;
+
+pub type ExecutionGraph = (EGraph, EGraphData);
+
+pub fn mk_graph(rr: &ReadResult) -> ExecutionGraph {
     let ReadResult(hdl, edges) = rr;
     let mut d = EGraph::new();
-    hdl.iter().for_each(| h | {
-        let mut last : Option<NodeIndex<u32>> = None;
-        h.messages.iter().for_each(| msg | {
-            let mut last : Option<NodeIndex<u32>> = None;
-            msg.evs.iter().for_each(| ev | {
+    let mut hd = HashMap::new();
+    hdl.iter().for_each(|h| {
+        let mut hid = Argument::new();
+        let mut map = HashMap::<Argument, Vec<NodeIndex>>::new();
+        let mut last: Option<NodeIndex<u32>> = None;
+        h.messages.iter().for_each(|msg| {
+            let mut mdata = Vec::<NodeIndex>::new();
+            let mut id = Argument::new();
+            let mut last: Option<NodeIndex<u32>> = None;
+            msg.evs.iter().for_each(|ev| {
                 let n = d.add_node(EPair(h.id.clone(), msg.id.clone(), ev.clone()));
+                hid = h.id.clone();
+                id = msg.id.clone();
+                mdata.push(n);
                 if let Some(l) = last {
                     d.add_edge(l, n, EdgeTp::PO);
                 }
                 last = Some(n);
             });
             // Add a Done event from which to connect EO later.
-            let np = d.add_node(EPair(h.id.clone(), msg.id.clone(), Event::Done(msg.id.clone())));
+            let np = d.add_node(EPair(
+                h.id.clone(),
+                msg.id.clone(),
+                Event::Done(msg.id.clone()),
+            ));
             d.add_edge(last.unwrap(), np, EdgeTp::PO);
+            mdata.push(np);
+            map.insert(id, mdata);
         });
+
+        hd.insert(hid, map);
     });
 
-    edges.iter().for_each(| e | {
+    edges.iter().for_each(|e| {
         let (et, from, to) = e;
-        if let Some(f) =  d.node_indices().find(|x| &d[*x].2 == from) {
+        if let Some(f) = d.node_indices().find(|x| &d[*x].2 == from) {
             if let Some(t) = d.node_indices().find(|x| &d[*x].2 == to) {
                 d.add_edge(f, t, et.clone());
-            } else { println!("Could not find event {:?} in graph:\n{:?}", to, d); }
-        } else { println!("Could not find event {:?} in graph:\n{:?}", from, d); }
+            } else {
+                println!("Could not find event {:?} in graph:\n{:?}", to, d);
+            }
+        } else {
+            println!("Could not find event {:?} in graph:\n{:?}", from, d);
+        }
     });
-    d
+    (d, hd)
 }
 
-pub fn get_mgraph(g : &EGraph) -> MGraph {
+pub fn get_mgraph(g: &EGraph) -> MGraph {
     let mut m = MGraph::new();
     for n in g.node_indices() {
         match &g[n] {
             EPair(hdl1, mid, Event::Get(mid2)) => {
                 assert!(mid == mid2);
                 m.add_node(MGraphE(true, n, mid.clone()));
-            },
+            }
             EPair(hdl1, mid, Event::Post(th, mid2)) => {
                 m.add_node(MGraphE(false, n, mid2.clone()));
             }
-            _ => ()
+            _ => (),
         }
     }
 
@@ -173,3 +195,5 @@ pub fn get_mgraph(g : &EGraph) -> MGraph {
     transitive_closure(&mut m, ());
     m
 }
+
+pub fn get_handlers(g: &EGraph) {}

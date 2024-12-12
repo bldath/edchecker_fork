@@ -1,12 +1,13 @@
 #![allow(unused)]
 
-pub mod model;
-pub mod parser;
-pub mod output;
-pub mod preprocess;
 pub mod algorithms;
-pub mod msg_algorithms;
 pub mod eo_edges;
+pub mod heuristics;
+pub mod model;
+pub mod msg_algorithms;
+pub mod output;
+pub mod parser;
+pub mod preprocess;
 
 pub mod do_edges;
 
@@ -19,43 +20,48 @@ use eo_edges::missing_eo;
 use eo_edges::missing_mo;
 use eo_edges::mo_cases;
 use eo_edges::remove_eo;
+use heuristics::*;
 use itertools::Itertools;
 use model::EGraph;
 
-use std::io;
-use std::fs;
-use std::time::Instant;
 use clap::Parser;
 use clap_verbosity_flag::Verbosity;
 use model::get_mgraph;
 use model::mk_graph;
 use msg_algorithms::extend_valid_multiset;
 use msg_algorithms::extend_valid_queue;
+use output::*;
 use parser::parse_str;
 use parser::read_file;
-use output::*;
 use petgraph::algo::is_cyclic_directed;
 use petgraph::dot::Dot;
 use preprocess::preprocess;
+use std::fs;
+use std::io;
+use std::time::Instant;
 
 use io::*;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
-enum ADT {
+pub enum ADT {
     Multiset,
     Queue,
     Stack,
-    Register
+    Register,
 }
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about=None)]
 struct Cli {
-    /// Input file
-    file: String,
     /// ADT to check consistency for
     #[arg(value_enum)]
     adt: ADT,
+
+    #[arg(value_enum)]
+    heuristics: Heuristic,
+
+    /// Input file
+    file: String,
 
     /// Print output graphs to dotfiles with name <FILE>.dot and <FILE>_ok.dot if check succeeds.
     #[arg(short, long)]
@@ -66,24 +72,27 @@ struct Cli {
     verbosity: Verbosity,
 }
 
-fn run_check(g : EGraph, adt : ADT) -> Option<EGraph> {
+fn run_check(g: EGraph, adt: ADT) -> Option<EGraph> {
     let missing_eo = missing_eo(&g);
     let missing_mo = missing_mo(&g);
     for g in eo_cases(&g, &missing_eo) {
         match adt {
             ADT::Multiset => {
                 let g_multiset = multiset_do(g);
-            },
+                if !is_cyclic_directed(&g_multiset) {
+                    return Some(g_multiset);
+                }
+            }
             _ => {
                 for gp in mo_cases(&g, &missing_mo) {
                     if let Some(q) = match adt {
                         ADT::Queue => Some(queue_do(gp)),
                         ADT::Stack => Some(stack_do(gp)),
                         ADT::Register => Some(reg_do(gp)),
-                        _ => None
+                        _ => None,
                     } {
                         if !is_cyclic_directed(&q) {
-                            return Some(q)
+                            return Some(q);
                         }
                     }
                 }
@@ -92,7 +101,6 @@ fn run_check(g : EGraph, adt : ADT) -> Option<EGraph> {
     }
     None
 }
-
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -104,10 +112,13 @@ fn main() -> Result<()> {
 
     let start = Instant::now();
     let q = read_file(cli.file.clone());
-    let mut g = mk_graph(&q);
-    preprocess(&mut g);
+    let (mut g, data) = mk_graph(&q);
     let parsed = Instant::now();
-    println!("Parsing: {:?}µs", (parsed-start).as_micros());
+    println!("Parsing: {:?}µs", (parsed - start).as_micros());
+    preprocess(&mut g, &data, cli.heuristics, cli.adt);
+    let preprocessed = Instant::now();
+    println!("Preprocessing: {:?}µs", (preprocessed - parsed).as_micros());
+
     if cli.draw {
         println!("Printing dot! {:?}.dot", cli.file);
         write_dot(&g, cli.file.clone())?;
@@ -115,7 +126,7 @@ fn main() -> Result<()> {
 
     let res = run_check(g, cli.adt);
     let done = Instant::now();
-    println!("Check: {:?}µs", (done - parsed).as_micros());
+    println!("Check: {:?}µs", (done - preprocessed).as_micros());
     println!("{:?}: {:?}", cli.adt, res.is_some());
     if let Some(q) = res {
         if cli.draw {
@@ -125,7 +136,12 @@ fn main() -> Result<()> {
     }
     // println!("Total: {:?}µs", (done - start).as_micros());
     // println!("Handlers: {:?}", q.0.len());
-    let num_mess : usize = q.0.iter().map(|x| x.messages.len()).collect_vec().iter().sum();
+    let num_mess: usize =
+        q.0.iter()
+            .map(|x| x.messages.len())
+            .collect_vec()
+            .iter()
+            .sum();
     // println!("Messages: {:?}", num_mess);
 
     // println!("{} cases.", n);
