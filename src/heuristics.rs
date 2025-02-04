@@ -28,7 +28,8 @@ pub enum Heuristic {
 pub fn heuristic_1(g: &mut EGraph, data: &EGraphData) {
     // If there is a path from some event in a message to some event in another message,
     // if they are on the same handler, the first message must happen before the other.
-
+    let mut mg = g.clone();
+    let fg = Frozen::new(&mut mg);
     let q = data
         .iter()
         .flat_map(|(hdl, msgs)| {
@@ -37,8 +38,8 @@ pub fn heuristic_1(g: &mut EGraph, data: &EGraphData) {
                 .filter_map(|((m1, evs1), (m2, evs2))| {
                     let x = *evs1.first().unwrap();
                     let y = *evs2.last().unwrap();
-                    if has_path_connecting(&g.clone(), x, y, None) {
-                        Some((EO, x, y))
+                    if has_path_connecting(&*fg, x, y, None) {
+                        Some((EO, *evs1.last().unwrap(), *evs2.first().unwrap()))
                     } else {
                         None
                     }

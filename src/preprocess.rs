@@ -17,18 +17,18 @@ pub fn preprocess(g: &mut EGraph, data: &EGraphData, heur: Heuristic, adt : ADT)
     add_rf(g);
     add_fr(g);
     //add_co(g); Is done manually..
-    let mt = get_missing_totality(g);
-    let v = mt
-        .iter()
-        .map(|(et, x, y)| (et.clone(), g[*x].clone(), g[*y].clone()))
-        .collect_vec();
-    if v.len() > 0 {
-        println!("Missing totality: {:?}", v);
-    }
+    // let mt = get_missing_totality(g);
+    // let v = mt
+    //     .iter()
+    //     .map(|(et, x, y)| (et.clone(), g[*x].clone(), g[*y].clone()))
+    //     .collect_vec();
+    // if v.len() > 0 {
+    //     println!("Missing totality: {:?}", v);
+    // }
 
-    for q in mt {
-        try_extend(g, q);
-    }
+    // for q in mt {
+    //     try_extend(g, q);
+    // }
 
     add_heuristics(g, &data, heur, adt);
     //deduce_eo(g);

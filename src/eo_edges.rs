@@ -10,8 +10,8 @@ use petgraph::visit::{
 use petgraph::{Graph, IntoWeightedEdge};
 
 use crate::algorithms::add_edges;
-use crate::model::{get_mgraph, Argument, EPair, Event};
-use crate::msg_algorithms::flip_iterator;
+use crate::model::{get_mgraph, Argument, EGraphData, EPair, Event};
+use crate::msg_algorithms::{flip_iter, flip_iterator};
 use crate::preprocess::{pair_fmap, quad_fmap};
 use crate::{model::EGraph, preprocess::triple_fmap};
 
@@ -21,7 +21,7 @@ pub fn mo_cases<'a>(
     g: &'a EGraph,
     missing: &'a Vec<(NodeIndex, NodeIndex)>,
 ) -> impl Iterator<Item = EGraph> + 'a {
-    flip_iterator(&missing).map(|q| {
+    flip_iter(&missing).map(|q| {
         let mut gp = g.clone();
         for (q1, q2) in q {
             gp.add_edge(q1, q2, MO);
@@ -32,12 +32,13 @@ pub fn mo_cases<'a>(
 
 pub fn eo_cases<'a>(
     g: &'a EGraph,
-    missing: &'a Vec<(Argument, Argument)>,
+    data: &'a EGraphData,
+    missing: &'a Vec<(Argument, Argument, Argument)>,
 ) -> impl Iterator<Item = EGraph> + 'a {
-    flip_iterator(&missing).map(|q| {
+    flip_iterator(&missing).map(move |q| {
         let mut gp = g.clone();
-        for (q1, q2) in q {
-            insert_eo(&mut gp, q1, q2);
+        for (hdl, q1, q2) in q {
+            insert_eo(&mut gp, data, hdl, q1, q2);
         }
         gp
     })
@@ -91,24 +92,34 @@ pub fn insert_forced_mo(g: &mut EGraph) {
     add_edges(g, q);
 }
 
-pub fn missing_eo(g: &EGraph) -> Vec<(Argument, Argument)> {
-    pair_fmap(&g, |x, y| match (&g[x], &g[y]) {
-        (EPair(hdl1, mid1, e1), EPair(hdl2, mid2, e2)) => {
-            if hdl1 == hdl2
-                && mid1 < mid2
-                && !has_path_connecting(&g.clone(), x, y, None)
-                && !has_path_connecting(&g.clone(), y, x, None)
-            {
-                Some((mid1.clone(), mid2.clone()))
-            } else {
-                None
+pub fn missing_eo(g: &EGraph, data : &EGraphData) -> Vec<(Argument, Argument, Argument)> {
+    data.iter().flat_map(| (hdl, msgs) | {
+        msgs.iter().tuple_combinations().filter_map(| ((m1, m1e), (m2, m2e)) | {
+            if m1 != m2 {
+                if !g.contains_edge(*m1e.last().unwrap(), *m2e.first().unwrap()) && !g.contains_edge(*m2e.last().unwrap(), *m1e.first().unwrap()) {
+                    return Some((hdl.clone(), m1.clone(), m2.clone()))
+                }
             }
-        }
-        _ => None,
-    })
-    .into_iter()
-    .unique()
-    .collect_vec()
+            None
+        })
+    }).collect_vec()
+    // pair_fmap(&g, |x, y| match (&g[x], &g[y]) {
+    //     (EPair(hdl1, mid1, e1), EPair(hdl2, mid2, e2)) => {
+    //         if hdl1 == hdl2
+    //             && mid1 < mid2
+    //             && !has_path_connecting(&g.clone(), x, y, None)
+    //             && !has_path_connecting(&g.clone(), y, x, None)
+    //         {
+    //             Some((mid1.clone(), mid2.clone()))
+    //         } else {
+    //             None
+    //         }
+    //     }
+    //     _ => None,
+    // })
+    // .into_iter()
+    // .unique()
+    // .collect_vec()
 }
 
 pub fn missing_mo(g: &EGraph) -> Vec<(NodeIndex, NodeIndex)> {
@@ -126,19 +137,26 @@ pub fn missing_mo(g: &EGraph) -> Vec<(NodeIndex, NodeIndex)> {
     .unique()
     .collect_vec()
 }
-fn insert_eo(g: &mut EGraph, m1: Argument, m2: Argument) {
-    let q = pair_fmap(&g, |x, y| match (&g[x], &g[y]) {
-        (EPair(hdl1, mid1, e1), EPair(hdl2, mid2, e2)) => {
-            if hdl1 == hdl2 && *mid1 == m1 && *mid2 == m2 {
-                Some((EO, x, y))
-            } else {
-                None
-            }
-        }
-        _ => None,
-    });
 
-    add_edges(g, q);
+
+fn insert_eo(g: &mut EGraph, data: &EGraphData, hdl: Argument, m1: Argument, m2: Argument) {
+    let m1 = data[&hdl][&m1].last().unwrap();
+    let m2 = data[&hdl][&m2].first().unwrap();
+
+    g.add_edge(*m1, *m2, EO);
+
+    // let q = pair_fmap(&g, |x, y| match (&g[x], &g[y]) {
+    //     (EPair(hdl1, mid1, e1), EPair(hdl2, mid2, e2)) => {
+    //         if hdl1 == hdl2 && *mid1 == m1 && *mid2 == m2 {
+    //             Some((EO, x, y))
+    //         } else {
+    //             None
+    //         }
+    //     }
+    //     _ => None,
+    // });
+
+    // add_edges(g, q);
 }
 
 fn get_fr(g: &mut EGraph) -> Vec<(EdgeTp, NodeIndex, NodeIndex)> {

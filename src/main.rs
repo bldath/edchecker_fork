@@ -28,6 +28,7 @@ use clap::Parser;
 use clap_verbosity_flag::Verbosity;
 use model::get_mgraph;
 use model::mk_graph;
+use model::EGraphData;
 use msg_algorithms::extend_valid_multiset;
 use msg_algorithms::extend_valid_queue;
 use output::*;
@@ -72,10 +73,10 @@ struct Cli {
     verbosity: Verbosity,
 }
 
-fn run_check(g: EGraph, adt: ADT) -> Option<EGraph> {
-    let missing_eo = missing_eo(&g);
+fn run_check(g: EGraph, data : &EGraphData, adt: ADT) -> Option<EGraph> {
+    let missing_eo = missing_eo(&g, data);
     let missing_mo = missing_mo(&g);
-    for g in eo_cases(&g, &missing_eo) {
+    for g in eo_cases(&g, data, &missing_eo) {
         match adt {
             ADT::Multiset => {
                 let g_multiset = multiset_do(g);
@@ -114,38 +115,48 @@ fn main() -> Result<()> {
     let q = read_file(cli.file.clone());
     let (mut g, data) = mk_graph(&q);
     let parsed = Instant::now();
+
+    if cli.draw {
+        let eg = (g.clone(), data.clone());
+        write_dot(&eg, cli.file.clone(), "input".into())?;
+    }
+
     println!("Parsing: {:?}µs", (parsed - start).as_micros());
     preprocess(&mut g, &data, cli.heuristics, cli.adt);
     let preprocessed = Instant::now();
     println!("Preprocessing: {:?}µs", (preprocessed - parsed).as_micros());
 
     if cli.draw {
-        println!("Printing dot! {:?}.dot", cli.file);
-        write_dot(&g, cli.file.clone())?;
+        let eg = (g.clone(), data.clone());
+        write_dot(&eg, cli.file.clone().into(), "".into())?;
     }
 
-    let res = run_check(g, cli.adt);
+    let res = run_check(g, &data, cli.adt);
     let done = Instant::now();
     println!("Check: {:?}µs", (done - preprocessed).as_micros());
-    println!("{:?}: {:?}", cli.adt, res.is_some());
+    println!("Total: {:?}µs", (done - start).as_micros());
+
+    println!("Result: {:?}", res.is_some());
+
     if let Some(q) = res {
         if cli.draw {
-            println!("Printing dot {:?}_ok.dot", cli.file);
-            write_dot(&q, (cli.file.clone() + "_ok").into());
+            let eg = (q.clone(), data.clone());
+            write_dot(&eg, cli.file.clone(), "ok".into())?;
         }
     }
-    // println!("Total: {:?}µs", (done - start).as_micros());
-    // println!("Handlers: {:?}", q.0.len());
+
+    println!("Handlers: {:?}", q.0.len());
     let num_mess: usize =
         q.0.iter()
             .map(|x| x.messages.len())
             .collect_vec()
             .iter()
             .sum();
-    // println!("Messages: {:?}", num_mess);
+    println!("Messages: {:?}", num_mess);
 
     // println!("{} cases.", n);
 
+    //println!("Result: {:?}", res.is_some());
     // println!("Multiset: {:?}", ms_ok);
     // println!("Queue: {:?}", q_ok);
     // println!("Stack: {:?}", s_ok);

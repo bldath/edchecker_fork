@@ -3,7 +3,7 @@ use crate::{
     model::{EGraph, EdgeTp::*, MGraph, MGraphE},
     preprocess::get_pairs,
 };
-use itertools::{Combinations, CombinationsWithReplacement, Itertools};
+use itertools::{repeat_n, Combinations, CombinationsWithReplacement, Itertools};
 use petgraph::algo::{has_path_connecting, is_cyclic_directed, toposort, Cycle};
 use petgraph::graph::NodeIndex;
 use petgraph::Graph;
@@ -33,25 +33,52 @@ where
     }
 }
 
-pub fn flip_iterator<A>(v: &Vec<(A, A)>) -> impl Iterator<Item = Vec<(A, A)>> + '_
+pub fn flip_iter<A>(v: &Vec<(A, A)>) -> impl Iterator<Item = Vec<(A, A)>> + '_
 where
     A: Clone,
 {
-    vec![true, false]
-        .into_iter()
-        .combinations_with_replacement(v.len())
-        .map(move |q| {
-            v.iter()
-                .zip(q.iter())
-                .map(|((a, b), flip)| {
-                    if *flip {
-                        (b.clone(), a.clone())
-                    } else {
-                        (a.clone(), b.clone())
-                    }
-                })
-                .collect_vec()
-        })
+    v.iter().map(|(a1, a2)| {
+        vec![(a1.clone(), a2.clone()), (a2.clone(), a1.clone())]
+    }).multi_cartesian_product()
+}
+
+
+// Given a vector of tuples, return an iterator consistingof all possible flips of the tuples.
+// For example, given [(1, 2), (3, 4)], the iterator will return [(1, 2), (3, 4)], [(2, 1), (3, 4)], [(1, 2), (4, 3)], [(2, 1), (4, 3)].
+// With th edge type added before.
+pub fn flip_iterator<A, B>(v: &Vec<(B, A, A)>) -> impl Iterator<Item = Vec<(B, A, A)>> + '_
+where
+    A: Clone,
+    B: Clone,
+{
+    v.iter().map(|(b, a1, a2)| {
+        vec![
+            (b.clone(), a1.clone(), a2.clone()),
+            (b.clone(), a2.clone(), a1.clone()),
+        ]
+    }).multi_cartesian_product()
+}
+
+#[cfg(test)]
+mod alg_test {
+    use itertools::Itertools;
+
+    use crate::msg_algorithms::flip_iterator;
+
+    #[test]
+    fn flip_iterator_test() {
+        let q = vec![("a", 1, 2), ("b", 3, 4)];
+        let flipped = flip_iterator(&q).collect_vec();
+        let res = vec![
+            vec![("a", 1, 2), ("b", 3, 4)],
+            vec![("a", 1, 2), ("b", 4, 3)],
+            vec![("a", 2, 1), ("b", 3, 4)],
+            vec![("a", 2, 1), ("b", 4, 3)],
+        ];
+        println!("{:?}", flipped);
+        println!("{:?}", res);
+        assert!(flipped == res);
+    }
 }
 
 // pub fn get_total_mo(g : &MGraph) -> impl Iterator<Item = MGraph> {
@@ -91,7 +118,7 @@ pub fn get_sequence(mg: &MGraph) -> Result<Vec<MGraphE>, Cycle<NodeIndex>> {
 
 pub fn extend_valid_multiset(g: &EGraph, mg: &MGraph) -> bool {
     let gp = extend_graph(g, mg);
-    let _ = write_dot(&gp, "res.dot".into());
+    //let _ = write_dot(&gp, "res.dot".into());
     //println!("Cyclic: {:?}", is_cyclic_directed(&gp));
     !is_cyclic_directed(&gp)
 }

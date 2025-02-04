@@ -24,7 +24,9 @@ pub fn add_edges<I>(g: &mut EGraph, it: I)
 where
     I: IntoIterator<Item = (EdgeTp, NodeIndex, NodeIndex)>,
 {
+
     for (et, from, to) in it {
+        //println!("Adding edge: {:?} -{:?}-> {:?}", g[from], et, g[to]);
         g.add_edge(from, to, et);
     }
 }

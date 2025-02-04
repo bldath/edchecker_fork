@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug, path};
+use std::{collections::HashMap, fmt::{Debug, Display}, path};
 
 use itertools::iproduct;
 use petgraph::{
@@ -31,6 +31,19 @@ pub enum Event {
     Done(Argument), // Final event in a message to make it easier to do stuff with EO
 }
 
+
+impl Display for Event {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Event::Write(a, b) => write!(f, "Write({}, {})", a, b),
+            Event::Read(a, b) => write!(f, "Read({}, {})", a, b),
+            Event::Post(a, b) => write!(f, "Post({}, {})", a, b),
+            Event::Get(a) => write!(f, "Get({})", a),
+            Event::Done(a) => write!(f, "Done({})", a),
+        }
+    }
+}
+
 // impl std::fmt::Debug for Event {
 //     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 //         match self {
@@ -45,12 +58,13 @@ pub struct Message {
     pub evs: Vec<Event>,
 }
 
+
 #[derive(Clone, PartialEq, Eq)]
 pub struct EPair(pub Argument, pub Argument, pub Event);
 
 impl Debug for EPair {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {}): {:?}", &self.0, &self.1, &self.2)
+        write!(f, "({}, {}): {}", &self.0, &self.1, &self.2)
     }
 }
 
@@ -95,9 +109,9 @@ pub struct MGraphE(pub bool, pub NodeIndex, pub Argument);
 impl Debug for MGraphE {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.0 {
-            write!(f, "Get({:?})", self.2)
+            write!(f, "Get({})", self.2)
         } else {
-            write!(f, "Post({:?})", self.2)
+            write!(f, "Post({})", self.2)
         }
     }
 }
