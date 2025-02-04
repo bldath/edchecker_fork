@@ -36,10 +36,16 @@ pub fn heuristic_1(g: &mut EGraph, data: &EGraphData) {
             msgs.iter()
                 .tuple_combinations()
                 .filter_map(|((m1, evs1), (m2, evs2))| {
-                    let x = *evs1.first().unwrap();
-                    let y = *evs2.last().unwrap();
-                    if has_path_connecting(&*fg, x, y, None) {
+                    let x1 = *evs1.first().unwrap();
+                    let yn = *evs2.last().unwrap();
+
+                    let xn = *evs1.last().unwrap();
+                    let y1 = *evs2.first().unwrap();
+
+                    if has_path_connecting(&*fg, x1, yn, None) {
                         Some((EO, *evs1.last().unwrap(), *evs2.first().unwrap()))
+                    } else if has_path_connecting(&*fg, y1, xn, None) {
+                        Some((EO, *evs2.last().unwrap(), *evs1.first().unwrap()))
                     } else {
                         None
                     }
@@ -211,11 +217,11 @@ pub fn add_heuristics(g: &mut EGraph, data: &EGraphData, heur: Heuristic, adt: A
     match heur {
         Heuristic::No => (),
         Heuristic::Simple => {
-            simple_heuristic_mo(g);
+            //simple_heuristic_mo(g);
             heuristic_1(g, data);
         }
         Heuristic::Full => {
-            simple_heuristic_mo(g);
+            //simple_heuristic_mo(g);
             heuristic_1(g, data);
             heuristic_2(g, data);
             match adt {

@@ -76,12 +76,19 @@ struct Cli {
 fn run_check(g: EGraph, data : &EGraphData, adt: ADT) -> Option<EGraph> {
     let missing_eo = missing_eo(&g, data);
     let missing_mo = missing_mo(&g);
+    let mut saved = false;
     for g in eo_cases(&g, data, &missing_eo) {
         match adt {
             ADT::Multiset => {
-                let g_multiset = multiset_do(g);
+                let g_multiset = multiset_do(g.clone());
                 if !is_cyclic_directed(&g_multiset) {
                     return Some(g_multiset);
+                } else {
+                    if !saved {
+                        let eg = (g.clone(), data.clone());
+                        write_dot(&eg, "multiset".into(), "cycle".into()).unwrap();
+                        saved = true;
+                    }
                 }
             }
             _ => {
@@ -128,7 +135,7 @@ fn main() -> Result<()> {
 
     if cli.draw {
         let eg = (g.clone(), data.clone());
-        write_dot(&eg, cli.file.clone().into(), "".into())?;
+        write_dot(&eg, cli.file.clone().into(), "pp".into())?;
     }
 
     let res = run_check(g, &data, cli.adt);
