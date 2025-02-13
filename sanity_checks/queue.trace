@@ -7,4 +7,4 @@
 { get(mid3) -> read(x,2) }
 { get(mid4) -> read(x,1) }
 $(CO)
-write(x,1) -> write(x,2)
+write(x,2) -> write(x,1)

@@ -35,8 +35,10 @@ use output::*;
 use parser::parse_str;
 use parser::read_file;
 use petgraph::algo::is_cyclic_directed;
+use petgraph::algo::kosaraju_scc;
 use petgraph::dot::Dot;
 use preprocess::preprocess;
+use std::collections::HashSet;
 use std::fs;
 use std::io;
 use std::time::Instant;
@@ -73,11 +75,15 @@ struct Cli {
     verbosity: Verbosity,
 }
 
-fn run_check(g: EGraph, data : &EGraphData, adt: ADT) -> Option<EGraph> {
+fn run_check(g: EGraph, data : &EGraphData, heur: Heuristic, adt: ADT) -> Option<EGraph> {
     let missing_eo = missing_eo(&g, data);
     let missing_mo = missing_mo(&g);
     let mut saved = false;
-    for g in eo_cases(&g, data, &missing_eo) {
+    let mut i = 0;
+    let numcases = i128::pow(2, missing_eo.len() as u32);
+    //println!("Missing EO: {:?}", missing_eo);
+    for (q, mut g) in eo_cases(&g, data, &missing_eo) {
+        i += 1;
         match adt {
             ADT::Multiset => {
                 let g_multiset = multiset_do(g.clone());
@@ -85,14 +91,19 @@ fn run_check(g: EGraph, data : &EGraphData, adt: ADT) -> Option<EGraph> {
                     return Some(g_multiset);
                 } else {
                     if !saved {
+                        let ig = g.clone();
+                        //let q = kosaraju_scc(&g).iter().filter(|x| x.len() > 1).map(|x| x.iter().map(|y| ig[*y].clone()).collect_vec()).collect_vec();
+                        //println!("Cycles: {:?}", q);
+
                         let eg = (g.clone(), data.clone());
-                        write_dot(&eg, "multiset".into(), "cycle".into()).unwrap();
+                        //write_dot(&eg, "multiset".into(), "cycle".into()).unwrap();
                         saved = true;
                     }
                 }
             }
             _ => {
                 for gp in mo_cases(&g, &missing_mo) {
+
                     if let Some(q) = match adt {
                         ADT::Queue => Some(queue_do(gp)),
                         ADT::Stack => Some(stack_do(gp)),
@@ -138,7 +149,7 @@ fn main() -> Result<()> {
         write_dot(&eg, cli.file.clone().into(), "pp".into())?;
     }
 
-    let res = run_check(g, &data, cli.adt);
+    let res = run_check(g, &data, cli.heuristics, cli.adt);
     let done = Instant::now();
     println!("Check: {:?}µs", (done - preprocessed).as_micros());
     println!("Total: {:?}µs", (done - start).as_micros());

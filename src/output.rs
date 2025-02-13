@@ -67,7 +67,7 @@ pub fn write_dot(graph: &ExecutionGraph, filename: String, suffix : String) -> R
 {
     if let Some(basename) = filename.split(".").next() {
         //let gr = Dot::new(&graph);
-        println!("Making dot! {}{}.dot", basename, suffix);
+        //println!("Making dot! {}{}.dot", basename, suffix);
         let mut f = File::create(basename.to_string() + &suffix.to_string() + ".dot")?;
         make_dot(graph, &mut f)
     } else {

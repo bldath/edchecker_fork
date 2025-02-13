@@ -67,6 +67,25 @@ mod alg_test {
 
     #[test]
     fn flip_iterator_test() {
+        let q = vec![("a", 1, 2), ("b", 3, 4), ("c", 5, 6)];
+        let flipped = flip_iterator(&q).collect_vec();
+        let res = vec![
+            vec![("a", 1, 2), ("b", 3, 4), ("c", 5, 6)],
+            vec![("a", 1, 2), ("b", 3, 4), ("c", 6, 5)],
+            vec![("a", 1, 2), ("b", 4, 3), ("c", 5, 6)],
+            vec![("a", 1, 2), ("b", 4, 3), ("c", 6, 5)],
+            vec![("a", 2, 1), ("b", 3, 4), ("c", 5, 6)],
+            vec![("a", 2, 1), ("b", 3, 4), ("c", 6, 5)],
+            vec![("a", 2, 1), ("b", 4, 3), ("c", 5, 6)],
+            vec![("a", 2, 1), ("b", 4, 3), ("c", 6, 5)],
+        ];
+        println!("{:?}", flipped);
+        println!("{:?}", res);
+        assert!(flipped == res);
+    }
+
+    #[test]
+    fn flip_iterator_test2() {
         let q = vec![("a", 1, 2), ("b", 3, 4)];
         let flipped = flip_iterator(&q).collect_vec();
         let res = vec![

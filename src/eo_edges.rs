@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use itertools::Itertools;
 use petgraph::algo::{has_path_connecting, DfsSpace};
 use petgraph::data::Build;
@@ -13,6 +15,7 @@ use crate::algorithms::add_edges;
 use crate::model::{get_mgraph, Argument, EGraphData, EPair, Event};
 use crate::msg_algorithms::{flip_iter, flip_iterator};
 use crate::preprocess::{pair_fmap, quad_fmap};
+use crate::{add_heuristics, Heuristic, ADT};
 use crate::{model::EGraph, preprocess::triple_fmap};
 
 use crate::model::EdgeTp::{self, *};
@@ -30,70 +33,43 @@ pub fn mo_cases<'a>(
     })
 }
 
+
+// pub fn make_guesses<'a>(
+//     g: &'a EGraph,
+//     data: &'a EGraphData,
+//     heur: Heuristic,
+//     adt: ADT
+// ) {
+//     let mis = missing_eo(g, data);
+//     if let Some(((hdl, m1, m2), b)) = mis.split_first() {
+//         let mut g1 = g.clone();
+//         insert_eo(&mut g1.clone(), data, hdl.clone(), m1.clone(), m2.clone());
+//         add_heuristics(&mut g1, data, heur, adt);
+
+//         let g2 = g.clone();
+//         insert_eo(&mut g2.clone(), data, hdl.clone(), m2.clone(), m1.clone());
+//         add_heuristics(&mut g2, data, heur, adt);
+
+
+//     }
+// }
+
 pub fn eo_cases<'a>(
     g: &'a EGraph,
     data: &'a EGraphData,
     missing: &'a Vec<(Argument, Argument, Argument)>,
-) -> impl Iterator<Item = EGraph> + 'a {
+) -> impl Iterator<Item = (Vec<(Argument, Argument, Argument)>, EGraph)> + 'a {
     flip_iterator(&missing).map(move |q| {
         let mut gp = g.clone();
-        for (hdl, q1, q2) in q {
-            insert_eo(&mut gp, data, hdl, q1, q2);
+        for (hdl, q1, q2) in &q {
+            insert_eo(&mut gp, data, hdl.clone(), q1.clone(), q2.clone());
         }
-        gp
+        (q.clone(), gp)
     })
-}
-
-pub fn insert_forced_eo(g: &mut EGraph) {
-    let q = pair_fmap(&g, |x, y| match (&g[x], &g[y]) {
-        (EPair(hdl1, mid1, Event::Get(mid1p)), EPair(hdl2, mid2, Event::Done(mid2p))) => {
-            if hdl1 == hdl2 && mid1 != mid2 && has_path_connecting(&g.clone(), x, y, None) {
-                Some((EO, x, y))
-            } else {
-                None
-            }
-        }
-        _ => None,
-    })
-    .into_iter()
-    .unique()
-    .collect_vec();
-
-    // let ne = pair_fmap(&g, | x, y | {
-    //     match (&g[x], &g[y]) {
-    //         (EPair(hdl1, mid1, e1), EPair(hdl2, mid2, e2)) => {
-    //             if q.contains(&(EO, mid1.clone(), mid2.clone())) {
-    //                 Some((EO, x, y))
-    //             } else { None }
-    //         }
-    //     }
-    // });
-    println!("Adding EO: {:?}", q);
-    add_edges(g, q);
-}
-
-pub fn insert_forced_mo(g: &mut EGraph) {
-    let q = pair_fmap(&g, |x, y| match (&g[x], &g[y]) {
-        (EPair(hdl1, mid1, Event::Post(rcv1, rm1)), EPair(hdl2, mid2, Event::Post(rcv2, rm2))) => {
-            if rcv1 == rcv2 && x != y && has_path_connecting(&g.clone(), x, y, None) {
-                Some((MO, x.clone(), y.clone()))
-            } else {
-                None
-            }
-        }
-        _ => None,
-    })
-    .into_iter()
-    .unique()
-    .collect_vec();
-
-    println!("Adding MO: {:?}", q);
-
-    add_edges(g, q);
 }
 
 pub fn missing_eo(g: &EGraph, data : &EGraphData) -> Vec<(Argument, Argument, Argument)> {
-    data.iter().flat_map(| (hdl, msgs) | {
+    let mut q : HashSet<(Argument, Argument, Argument)> = data.iter().flat_map(| (hdl, msgs) | {
         msgs.iter().tuple_combinations().filter_map(| ((m1, m1e), (m2, m2e)) | {
             if m1 != m2 {
                 if !g.contains_edge(*m1e.last().unwrap(), *m2e.first().unwrap()) && !g.contains_edge(*m2e.last().unwrap(), *m1e.first().unwrap()) {
@@ -102,24 +78,9 @@ pub fn missing_eo(g: &EGraph, data : &EGraphData) -> Vec<(Argument, Argument, Ar
             }
             None
         })
-    }).collect_vec()
-    // pair_fmap(&g, |x, y| match (&g[x], &g[y]) {
-    //     (EPair(hdl1, mid1, e1), EPair(hdl2, mid2, e2)) => {
-    //         if hdl1 == hdl2
-    //             && mid1 < mid2
-    //             && !has_path_connecting(&g.clone(), x, y, None)
-    //             && !has_path_connecting(&g.clone(), y, x, None)
-    //         {
-    //             Some((mid1.clone(), mid2.clone()))
-    //         } else {
-    //             None
-    //         }
-    //     }
-    //     _ => None,
-    // })
-    // .into_iter()
-    // .unique()
-    // .collect_vec()
+    }).collect();
+
+    q.into_iter().collect_vec()
 }
 
 pub fn missing_mo(g: &EGraph) -> Vec<(NodeIndex, NodeIndex)> {

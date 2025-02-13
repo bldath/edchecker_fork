@@ -10,9 +10,7 @@ use petgraph::{
 use crate::{
     algorithms::add_edges,
     model::{
-        EGraph, EGraphData, EPair,
-        EdgeTp::{self, *},
-        Event,
+        Argument, EGraph, EGraphData, EPair, EdgeTp::{self, *}, Event
     },
     preprocess::pair_fmap, ADT,
 };
@@ -37,22 +35,25 @@ pub fn heuristic_1(g: &mut EGraph, data: &EGraphData) {
                 .tuple_combinations()
                 .filter_map(|((m1, evs1), (m2, evs2))| {
                     let x1 = *evs1.first().unwrap();
+                    let xn = *evs1.last().unwrap();
+
+                    let y1 = *evs2.first().unwrap();
                     let yn = *evs2.last().unwrap();
 
-                    let xn = *evs1.last().unwrap();
-                    let y1 = *evs2.first().unwrap();
-
-                    if has_path_connecting(&*fg, x1, yn, None) {
-                        Some((EO, *evs1.last().unwrap(), *evs2.first().unwrap()))
-                    } else if has_path_connecting(&*fg, y1, xn, None) {
-                        Some((EO, *evs2.last().unwrap(), *evs1.first().unwrap()))
+                    if has_path_connecting(&*fg, x1, yn, None) && !g.contains_edge(xn, y1) {
+                        Some((EO, xn, y1))
+                    } else if has_path_connecting(&*fg, y1, xn, None) && !g.contains_edge(yn, x1) {
+                        Some((EO, yn, x1))
                     } else {
                         None
                     }
                 })
         })
         .collect_vec();
-    add_edges(g, q);
+    if q.len() > 0 {
+        add_edges(g, q);
+        heuristic_1(g, data);
+    }
 }
 
 pub fn simple_heuristic_mo(g: &mut EGraph) {
@@ -211,7 +212,6 @@ pub fn heuristic_4(g: &mut EGraph, data: &EGraphData) {
         }).collect_vec();
     add_edges(g, q);
 }
-
 
 pub fn add_heuristics(g: &mut EGraph, data: &EGraphData, heur: Heuristic, adt: ADT) {
     match heur {
