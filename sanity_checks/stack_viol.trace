@@ -1,0 +1,7 @@
+@h1
+{ get(h11) -> read(z, 1) -> post(h2, m2) -> write(x, 1) }
+{ get(h12) -> read(x, 1) -> post(h2, m3) -> write(y, 1) }
+@h2
+{ get(m1) -> write(z, 1) -> read(y, 1)}
+{ get(m2) -> write(l, 1) }
+{ get(m3) -> read(l, 1) }

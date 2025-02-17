@@ -5,6 +5,8 @@ from example_nidhugg import *
 import re
 import sys
 import os
+import random
+
 ev_regex = re.compile(r"^\s*\(<(?P<tid>.*?)>,(?P<eid>\d+-?\d*)\)\s*(?P<hdl>-?\d+):\s*(?P<evt>.*)\s*SLP")
 
 post_re = re.compile(r"Post\(<(?P<mid>.*?)>\)\s*")
@@ -17,7 +19,6 @@ var_ctr = 0
 var_ids = {}
 
 hdl_of_msg = {}
-
 
 def get_hist(trace):
     global var_ctrs, var_ctr, var_ids, hdl_of_msg
@@ -58,9 +59,9 @@ def get_hist(trace):
             sre = store_re.match(evt['evt'])
             lre = load_re.match(evt['evt'])
             hdl_of_msg[evt['tid']] = evt['hdl']
+            evs[evt['hdl']][evt['tid']] = evs[evt['hdl']][evt['tid']] # Noop to make sure we keep empty messages
             if pre:
                 q = pre.groupdict()
-
                 evs[evt['hdl']][evt['tid']].append(('post', None, q['mid']))
             elif sre:
                 q = sre.groupdict()
@@ -106,6 +107,31 @@ def write_trace(fn, co_var, evs):
                     f.write(";\n")
 
 
+def preprocess_trace(co_var, evs):
+    new_evs = dd(lambda: dd(lambda: []))
+    for (hdl, msgs) in evs.items():
+        for (mid, evs) in msgs.items():
+            if len(evs) > 0:
+                print(evs)
+                new_evs[hdl][mid] = evs
+
+    to_remove = []
+    for (hdl, msgs) in new_evs.items():
+        for (mid, evs) in msgs.items():
+            for ev in evs:
+                op, a1, a2 = ev
+                if op == 'post':
+                    if not (hdl_of_msg[a2] in new_evs.keys() and a2 in new_evs.get(hdl_of_msg[a2]).keys()):
+                        to_remove.append((hdl, mid, ev))
+
+    print("removing ", to_remove)
+    for (hdl, mid, ev) in to_remove:
+        new_evs[hdl][mid].remove(ev)
+
+    return (co_var, new_evs)
+
+
+
 if __name__=="__main__":
     print(sys.argv[1])
     traces = []
@@ -119,7 +145,8 @@ if __name__=="__main__":
     basename = sys.argv[1][0:-4] + "/"
     outdir = sys.argv[2]
     os.makedirs(basename, exist_ok=True)
-    for t in traces[1:]:
+    for t in random.sample(traces[1:-2], min(10, len(traces[1:-2]))):
         h = get_hist(t)
         os.makedirs(outdir + "/" + basename, exist_ok=True)
-        write_trace(outdir + "/" + basename + "trace", *h)
+        h2 = preprocess_trace(*h)
+        write_trace(outdir + "/" + basename + "trace", *h2)

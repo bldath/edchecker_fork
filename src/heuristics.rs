@@ -115,7 +115,6 @@ pub fn heuristic_2(g: &mut EGraph, data: &EGraphData) {
             })
         })
         .collect_vec();
-
     add_edges(g, q);
 }
 

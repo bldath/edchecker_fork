@@ -16,6 +16,7 @@ use crate::model::{get_mgraph, Argument, EGraphData, EPair, Event};
 use crate::msg_algorithms::{flip_iter, flip_iterator};
 use crate::preprocess::{pair_fmap, quad_fmap};
 use crate::{add_heuristics, Heuristic, ADT};
+use crate::do_edges::get_post;
 use crate::{model::EGraph, preprocess::triple_fmap};
 
 use crate::model::EdgeTp::{self, *};
@@ -83,20 +84,32 @@ pub fn missing_eo(g: &EGraph, data : &EGraphData) -> Vec<(Argument, Argument, Ar
     q.into_iter().collect_vec()
 }
 
-pub fn missing_mo(g: &EGraph) -> Vec<(NodeIndex, NodeIndex)> {
-    pair_fmap(&g, |x, y| match (&g[x], &g[y]) {
-        (EPair(hdl1, mid1, Event::Post(r1, rm1)), EPair(hdl2, mid2, Event::Post(r2, rm2))) => {
-            if r1 == r2 && rm1 < rm2 && !g.contains_edge(x, y) && !g.contains_edge(y, x) {
-                Some((x, y))
-            } else {
-                None
-            }
-        }
-        _ => None,
-    })
-    .into_iter()
-    .unique()
-    .collect_vec()
+pub fn missing_mo(g: &EGraph, data: &EGraphData) -> Vec<(bool, NodeIndex, NodeIndex)> {
+    data.iter()
+        .flat_map(|(hdl, msgs)| {
+            msgs
+                .iter()
+                .tuple_combinations()
+                .filter_map(|((m1, e1), (m2, e2))| {
+                    let m1get = *e1.first().unwrap();
+                    let m1done = *e1.last().unwrap();
+
+                    let m2get = *e2.first().unwrap();
+                    let m2done = *e2.last().unwrap();
+
+                    if let (Some(m1post), Some(m2post)) = (get_post(&g, m1get), get_post(&g, m2get)) {
+                        if has_path_connecting(g, m1post, m2post, None) {
+                            Some((true, m1post, m2post))
+                        } else if has_path_connecting(g, m2post, m1post, None) {
+                            Some((true, m2post, m1post))
+                        } else {
+                            Some((false, m1post, m2post))
+                        }
+                    } else {
+                        None
+                    }
+            })
+        }).collect_vec()
 }
 
 

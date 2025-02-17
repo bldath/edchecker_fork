@@ -29,6 +29,7 @@ use clap_verbosity_flag::Verbosity;
 use model::get_mgraph;
 use model::mk_graph;
 use model::EGraphData;
+use model::EdgeTp;
 use msg_algorithms::extend_valid_multiset;
 use msg_algorithms::extend_valid_queue;
 use output::*;
@@ -45,7 +46,7 @@ use std::time::Instant;
 
 use io::*;
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 pub enum ADT {
     Multiset,
     Queue,
@@ -75,16 +76,27 @@ struct Cli {
     verbosity: Verbosity,
 }
 
-fn run_check(g: EGraph, data : &EGraphData, heur: Heuristic, adt: ADT) -> Option<EGraph> {
+fn run_check(mut g: EGraph, data : &EGraphData, cli : &Cli) -> Option<EGraph> {
     let missing_eo = missing_eo(&g, data);
-    let missing_mo = missing_mo(&g);
+    let missing_tmp = missing_mo(&g, data);
+    let mut missing_mo = vec![];
+
+    for (b, x, y) in &missing_tmp {
+        if *b && cli.adt != ADT::Multiset {
+            g.add_edge(*x, *y, EdgeTp::MO);
+        } else {
+            missing_mo.push((*x, *y));
+        }
+    }
+
     let mut saved = false;
     let mut i = 0;
     let numcases = i128::pow(2, missing_eo.len() as u32);
-    //println!("Missing EO: {:?}", missing_eo);
+    //println!("Missing MO: {:?}", missing_mo.iter().map(|(x, y)| (g[*x].clone(), g[*y].clone())).collect_vec());
+    // println!("Missing EO: {:?}", missing_eo.len());
     for (q, mut g) in eo_cases(&g, data, &missing_eo) {
         i += 1;
-        match adt {
+        match cli.adt {
             ADT::Multiset => {
                 let g_multiset = multiset_do(g.clone());
                 if !is_cyclic_directed(&g_multiset) {
@@ -94,9 +106,10 @@ fn run_check(g: EGraph, data : &EGraphData, heur: Heuristic, adt: ADT) -> Option
                         let ig = g.clone();
                         //let q = kosaraju_scc(&g).iter().filter(|x| x.len() > 1).map(|x| x.iter().map(|y| ig[*y].clone()).collect_vec()).collect_vec();
                         //println!("Cycles: {:?}", q);
-
                         let eg = (g.clone(), data.clone());
-                        //write_dot(&eg, "multiset".into(), "cycle".into()).unwrap();
+                        if(cli.draw) {
+                            write_dot(&eg, "multiset".into(), "cycle".into()).unwrap();
+                        }
                         saved = true;
                     }
                 }
@@ -104,14 +117,25 @@ fn run_check(g: EGraph, data : &EGraphData, heur: Heuristic, adt: ADT) -> Option
             _ => {
                 for gp in mo_cases(&g, &missing_mo) {
 
-                    if let Some(q) = match adt {
-                        ADT::Queue => Some(queue_do(gp)),
-                        ADT::Stack => Some(stack_do(gp)),
+                    if let Some(q) = match cli.adt {
+                        ADT::Queue => Some(queue_do(gp, data)),
+                        ADT::Stack => Some(stack_do(gp, data)),
                         ADT::Register => Some(reg_do(gp)),
                         _ => None,
                     } {
                         if !is_cyclic_directed(&q) {
                             return Some(q);
+                        } else {
+                            if !saved {
+                                let ig = g.clone();
+                                //let q = kosaraju_scc(&g).iter().filter(|x| x.len() > 1).map(|x| x.iter().map(|y| ig[*y].clone()).collect_vec()).collect_vec();
+                                //println!("Cycles: {:?}", q);
+                                let eg = (q.clone(), data.clone());
+                                if(cli.draw) {
+                                    write_dot(&eg, "adt".into(), "cycle".into()).unwrap();
+                                }
+                                saved = true;
+                            }
                         }
                     }
                 }
@@ -149,7 +173,7 @@ fn main() -> Result<()> {
         write_dot(&eg, cli.file.clone().into(), "pp".into())?;
     }
 
-    let res = run_check(g, &data, cli.heuristics, cli.adt);
+    let res = run_check(g, &data,&cli);
     let done = Instant::now();
     println!("Check: {:?}µs", (done - preprocessed).as_micros());
     println!("Total: {:?}µs", (done - start).as_micros());
