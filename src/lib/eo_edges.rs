@@ -15,7 +15,7 @@ use crate::algorithms::add_edges;
 use crate::model::{get_mgraph, Argument, EGraphData, EPair, Event};
 use crate::msg_algorithms::{flip_iter, flip_iterator};
 use crate::preprocess::{pair_fmap, quad_fmap};
-use crate::{add_heuristics, Heuristic, ADT};
+use crate::cli::*;
 use crate::do_edges::get_post;
 use crate::{model::EGraph, preprocess::triple_fmap};
 

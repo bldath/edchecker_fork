@@ -1,4 +1,5 @@
-use crate::write_dot;
+
+use crate::output::write_dot;
 use crate::{
     model::{EGraph, EdgeTp::*, MGraph, MGraphE},
     preprocess::get_pairs,

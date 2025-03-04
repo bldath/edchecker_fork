@@ -1,80 +1,43 @@
 #![allow(unused)]
 
-pub mod algorithms;
-pub mod eo_edges;
-pub mod heuristics;
-pub mod model;
-pub mod msg_algorithms;
-pub mod output;
-pub mod parser;
-pub mod preprocess;
+extern crate lib;
 
-pub mod do_edges;
+use lib::cli::*;
 
-use algorithms::add_edges;
+use lib::algorithms::add_edges;
 use clap::ValueEnum;
-use do_edges::*;
-use eo_edges::eo_cases;
-use eo_edges::get_eod;
-use eo_edges::missing_eo;
-use eo_edges::missing_mo;
-use eo_edges::mo_cases;
-use eo_edges::remove_eo;
-use heuristics::*;
+use lib::do_edges::*;
+use lib::eo_edges::eo_cases;
+use lib::eo_edges::get_eod;
+use lib::eo_edges::missing_eo;
+use lib::eo_edges::missing_mo;
+use lib::eo_edges::mo_cases;
+use lib::eo_edges::remove_eo;
+use lib::heuristics::*;
 use itertools::Itertools;
-use model::EGraph;
+use lib::model::EGraph;
 
 use clap::Parser;
 use clap_verbosity_flag::Verbosity;
-use model::get_mgraph;
-use model::mk_graph;
-use model::EGraphData;
-use model::EdgeTp;
-use msg_algorithms::extend_valid_multiset;
-use msg_algorithms::extend_valid_queue;
-use output::*;
-use parser::parse_str;
-use parser::read_file;
+use lib::model::get_mgraph;
+use lib::model::mk_graph;
+use lib::model::EGraphData;
+use lib::model::EdgeTp;
+use lib::msg_algorithms::extend_valid_multiset;
+use lib::msg_algorithms::extend_valid_queue;
+use lib::output::*;
+use lib::parser::parse_str;
+use lib::parser::read_file;
 use petgraph::algo::is_cyclic_directed;
 use petgraph::algo::kosaraju_scc;
 use petgraph::dot::Dot;
-use preprocess::preprocess;
+use lib::preprocess::preprocess;
 use std::collections::HashSet;
 use std::fs;
 use std::io;
 use std::time::Instant;
 
 use io::*;
-
-#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
-pub enum ADT {
-    Multiset,
-    Queue,
-    Stack,
-    Register,
-}
-
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about=None)]
-struct Cli {
-    /// ADT to check consistency for
-    #[arg(value_enum)]
-    adt: ADT,
-
-    #[arg(value_enum)]
-    heuristics: Heuristic,
-
-    /// Input file
-    file: String,
-
-    /// Print output graphs to dotfiles with name <FILE>.dot and <FILE>_ok.dot if check succeeds.
-    #[arg(short, long)]
-    draw: bool,
-
-    /// Verbosity for more debugging output. The more -v's the more verbose. -vvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    #[command(flatten)]
-    verbosity: Verbosity,
-}
 
 fn run_check(mut g: EGraph, data : &EGraphData, cli : &Cli) -> Option<EGraph> {
     let missing_eo = missing_eo(&g, data);

@@ -1,4 +1,9 @@
-use crate::{add_heuristics, model::EdgeTp::*, Heuristic, ADT};
+
+
+use crate::model::EdgeTp::*;
+
+use crate::cli::ADT;
+use crate::heuristics::{add_heuristics, Heuristic};
 use petgraph::{
     algo, csr::IndexType, graph::NodeIndex, visit::IntoNodeIdentifiers, EdgeType, Graph,
 };

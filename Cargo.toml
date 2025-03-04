@@ -1,7 +1,13 @@
 [package]
-name = "EDConsistency"
+name = "EDChecker"
 version = "0.1.0"
 edition = "2021"
+default-run = "edchecker"
+
+
+[lib]
+name="lib"
+path="src/lib/lib.rs"
 
 [dependencies]
 petgraph = "0.6.5"

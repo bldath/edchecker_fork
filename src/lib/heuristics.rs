@@ -12,15 +12,16 @@ use crate::{
     model::{
         Argument, EGraph, EGraphData, EPair, EdgeTp::{self, *}, Event
     },
-    preprocess::pair_fmap, ADT,
+    preprocess::pair_fmap,
+    cli::ADT,
 };
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 pub enum Heuristic {
-    No = 0,
-    Simple = 1,
-    Full = 2,
+    No,
+    Simple,
+    Full,
 }
 
 pub fn heuristic_1(g: &mut EGraph, data: &EGraphData) {
