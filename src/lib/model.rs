@@ -32,6 +32,16 @@ pub enum Event {
 }
 
 
+impl Event {
+    pub fn variable(&self) -> Option<Argument> {
+        match self {
+            Event::Write(v, _) => Some(v.clone()),
+            Event::Read(v, _) => Some(v.clone()),
+            _ => None
+        }
+    }
+}
+
 impl Display for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -124,7 +134,9 @@ pub struct Handler {
     pub messages: Vec<Message>,
 }
 
-pub struct ReadResult(pub Vec<Handler>, pub Vec<(EdgeTp, Event, Event)>);
+//pub struct ReadResult(pub Vec<Handler>, pub Vec<(EdgeTp, Event, Event)>);
+
+pub type ReadResult = (HashMap<String, HashMap<String, Vec<Event>>>, Vec<(EdgeTp, Event, Event)>);
 
 pub type HandlerData = HashMap<Argument, Vec<NodeIndex>>;
 pub type EGraphData = HashMap<Argument, HandlerData>;
@@ -132,21 +144,22 @@ pub type EGraphData = HashMap<Argument, HandlerData>;
 pub type ExecutionGraph = (EGraph, EGraphData);
 
 pub fn mk_graph(rr: &ReadResult) -> ExecutionGraph {
-    let ReadResult(hdl, edges) = rr;
+    let (hdl, edges) = rr;
     let mut d = EGraph::new();
     let mut hd = HashMap::new();
-    hdl.iter().for_each(|h| {
-        let mut hid = Argument::new();
+
+    hdl.iter().for_each(|(hid, msgs)| {
+        //let mut hid = Argument::new();
         let mut map = HashMap::<Argument, Vec<NodeIndex>>::new();
         let mut last: Option<NodeIndex<u32>> = None;
-        h.messages.iter().for_each(|msg| {
+        msgs.iter().for_each(|(mid, evs)| {
             let mut mdata = Vec::<NodeIndex>::new();
             let mut id = Argument::new();
             let mut last: Option<NodeIndex<u32>> = None;
-            msg.evs.iter().for_each(|ev| {
-                let n = d.add_node(EPair(h.id.clone(), msg.id.clone(), ev.clone()));
-                hid = h.id.clone();
-                id = msg.id.clone();
+            evs.iter().for_each(|ev| {
+                let n = d.add_node(EPair(hid.clone(), mid.clone(), ev.clone()));
+                //hid = hid.clone();
+                id = mid.clone();
                 mdata.push(n);
                 if let Some(l) = last {
                     d.add_edge(l, n, EdgeTp::PO);
@@ -155,16 +168,16 @@ pub fn mk_graph(rr: &ReadResult) -> ExecutionGraph {
             });
             // Add a Done event from which to connect EO later.
             let np = d.add_node(EPair(
-                h.id.clone(),
-                msg.id.clone(),
-                Event::Done(msg.id.clone()),
+                hid.clone(),
+                mid.clone(),
+                Event::Done(mid.clone()),
             ));
             d.add_edge(last.unwrap(), np, EdgeTp::PO);
             mdata.push(np);
             map.insert(id, mdata);
         });
 
-        hd.insert(hid, map);
+        hd.insert(hid.clone(), map);
     });
 
     edges.iter().for_each(|e| {

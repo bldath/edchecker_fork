@@ -126,6 +126,22 @@ fn main() -> Result<()> {
         write_dot(&eg, cli.file.clone(), "input".into())?;
     }
 
+    println!("Handlers: {:?}", q.0.len());
+    let num_mess: usize =
+        q.0.iter()
+            .map(|x| x.1.len())
+            .collect_vec()
+            .iter()
+            .sum();
+    println!("Messages: {:?}", num_mess);
+
+    let num_ev : usize =
+        q.0.iter()
+            .map(|x|
+                 x.1.iter()
+                    .map(|y| y.1.len()).sum::<usize>()).sum();
+
+    println!("Events: {:?}", num_ev);
     println!("Parsing: {:?}µs", (parsed - start).as_micros());
     preprocess(&mut g, &data, cli.heuristics, cli.adt);
     let preprocessed = Instant::now();
@@ -150,14 +166,7 @@ fn main() -> Result<()> {
         }
     }
 
-    println!("Handlers: {:?}", q.0.len());
-    let num_mess: usize =
-        q.0.iter()
-            .map(|x| x.messages.len())
-            .collect_vec()
-            .iter()
-            .sum();
-    println!("Messages: {:?}", num_mess);
+
 
     // println!("{} cases.", n);
 

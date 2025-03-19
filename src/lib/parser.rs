@@ -2,9 +2,7 @@ use itertools::Itertools;
 use log::{debug, info};
 use regex::Regex;
 use std::{
-    fs,
-    iter::{self, Chain},
-    str::FromStr,
+    collections::HashMap, fs, iter::{self, Chain}, str::FromStr
 };
 
 use crate::model::{self, EGraph, EPair, EdgeTp, EdgeTp::*, Event, Handler, Message, ReadResult};
@@ -13,17 +11,17 @@ pub fn read_file(filename: String) -> ReadResult {
     if let Ok(q) = fs::read_to_string(filename) {
         parse_str(&q)
     } else {
-        ReadResult(vec![], vec![])
+        (HashMap::new(), vec![])
     }
 }
 
 pub fn parse_event(s: &String) -> Option<Event> {
     let ev_regex = Regex::new(r"(\w+)\(\s*(\w*)\s*,\s*([\w\.]*)\s*\)").unwrap();
     if let Some(c) = ev_regex.captures(s) {
-        let op: &str = c.get(1).unwrap().as_str();
+        let op: String = c.get(1).unwrap().as_str().to_lowercase();
         let a1: String = c.get(2).unwrap().as_str().into();
         let a2: String = c.get(3).unwrap().as_str().into();
-        return match op {
+        return match op.as_str() {
             "write" => Some(Event::Write(a1, a2)),
             "read" => Some(Event::Read(a1, a2)),
             "post" => Some(Event::Post(a1, a2)),
@@ -40,7 +38,12 @@ pub fn list_to_message(l: &Vec<String>) -> Option<Message> {
 
     let get_regex = Regex::new(r"[gG]et\(([\w\.]*)\)").unwrap();
 
-    let mid = get_regex.captures(get_msg).unwrap().get(1)?.as_str();
+    let mid = if let Some(cap) = get_regex.captures(get_msg) {
+        cap.get(1).unwrap().as_str()
+    } else {
+        panic!("What {}", get_msg);
+    };
+
 
     let sevs = events.filter_map(|e| parse_event(e));
 
@@ -76,7 +79,7 @@ pub fn parse_edges(s: &String) -> Vec<(EdgeTp, Event, Event)> {
         .map(|x| x.split("->").map(|x| x.to_string()).collect_vec())
         .collect_vec();
     // TODO make CO total by (in addition to x_i CO x_i+1 add x_m CO x_i for all m < i)
-    info!("Edges: {:?}", chains);
+    //info!("Edges: {:?}", chains);
 
     chains
         .iter()
@@ -90,15 +93,14 @@ pub fn parse_edges(s: &String) -> Vec<(EdgeTp, Event, Event)> {
 }
 
 pub fn parse_str(s: &String) -> ReadResult {
-    let mut handlers: Vec<Handler> = vec![];
+    let mut handlers = HashMap::<String, HashMap<String, Vec<Event>>>::new();
     let mut active_handler: String = "NONE".into();
-    let mut msgs: Vec<Message> = vec![];
     let strs: Vec<String> = s.split('$').map(|x| x.replace('\n', " ").into()).collect();
     let handler_strs: Vec<String> = strs[0].split('@').skip(1).map(|x| x.into()).collect();
 
     let msg_regex = Regex::new(r"\{.*\}").unwrap();
 
-    let q: Vec<Handler> = handler_strs
+    let q = handler_strs
         .iter()
         .map(|h| {
             let v: Vec<String> = h
@@ -117,11 +119,8 @@ pub fn parse_str(s: &String) -> ReadResult {
                 .collect();
 
             // Now we have the events as text! Time to map them to Messages!
-            let msgs: Vec<Message> = m.iter().filter_map(|x| list_to_message(x)).collect();
-            Handler {
-                id: hid,
-                messages: msgs,
-            }
+            let msgs = m.iter().filter_map(|x| list_to_message(x)).map(|msg| (msg.id, msg.evs)).collect();
+            (hid, msgs)
         })
         .collect();
 
@@ -133,5 +132,5 @@ pub fn parse_str(s: &String) -> ReadResult {
     //         (EO, evs[0].clone(), e2[0].clone())
     //     })
     // })).collect_vec();
-    ReadResult(q, edges.collect_vec())
+    (q, edges.collect_vec())
 }

@@ -15,7 +15,7 @@ pub enum ADT {
 #[command(author, version, about, long_about=None)]
 pub struct Cli {
     /// Input file
-    pub file: String,
+
     /// ADT to check consistency for
     #[arg(value_enum)]
     pub adt: ADT,
@@ -23,6 +23,8 @@ pub struct Cli {
     #[arg(value_enum)]
     pub heuristics: Heuristic,
 
+
+    pub file: String,
     /// Print output graphs to dotfiles with name <FILE>.dot and <FILE>_ok.dot if check succeeds.
     #[arg(short, long)]
     pub draw: bool,

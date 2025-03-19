@@ -20,7 +20,7 @@ pub fn preprocess(g: &mut EGraph, data: &EGraphData, heur: Heuristic, adt : ADT)
     add_pb(g);
     add_rf(g);
     add_fr(g);
-    //add_co(g); Is done manually..
+    //add_co(g); //Is done manually
     add_heuristics(g, &data, heur, adt);
     //deduce_eo(g);
 }

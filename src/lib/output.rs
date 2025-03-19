@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use petgraph::{
     dot::{Config, Dot}, visit::{EdgeIndexable, EdgeRef, NodeIndexable, NodeRef}, Graph
 };
@@ -62,7 +63,6 @@ where
     Ok(())
 }
 
-
 pub fn write_dot(graph: &ExecutionGraph, filename: String, suffix : String) -> Result<(), Error>
 {
     if let Some(basename) = filename.split(".").next() {
@@ -76,4 +76,28 @@ pub fn write_dot(graph: &ExecutionGraph, filename: String, suffix : String) -> R
             "Could not modify filename",
         ))
     }
+}
+
+
+pub fn write_graph(graph : &ExecutionGraph, filename: String) -> Result<(), Error> {
+    let mut f = File::create(filename)?;
+
+    let (eg, hm) = graph;
+    for (handler, msgs) in hm {
+        writeln!(f, "@{}", handler)?;
+        for (mid, evs) in msgs {
+            let evsp = evs.iter().take(evs.len() - 1).map(|x| format!("{}", eg[*x].2)).collect_vec();
+            writeln!(f, "{{ {} }}", evsp.join(" -> "))?;
+        }
+    }
+
+    for e in eg.edge_indices() {
+        let (src, dst) = eg.edge_endpoints(e).unwrap();
+        if eg[e] == EdgeTp::CO {
+            writeln!(f, "$(CO)")?;
+            writeln!(f, "{} -> {}", eg[src].2, eg[dst].2)?;
+        }
+    }
+
+    Ok(())
 }
