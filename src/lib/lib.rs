@@ -10,3 +10,4 @@ pub mod parser;
 pub mod preprocess;
 pub mod cli;
 pub mod do_edges;
+pub mod instance;
