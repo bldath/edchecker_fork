@@ -69,7 +69,7 @@ fn main() -> Result<()> {
             println!("Result: true");
             if cli.draw {
                 let model = solver.get_model().unwrap();
-                
+
                 let (mut graph, maps) = mk_graph(&q);
 
                 let indices = &instance.indices;
