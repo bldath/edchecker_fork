@@ -1,0 +1,9 @@
+digraph {
+rankdir = TB;
+0 [label="(h1, m10): Get(m10)"];
+1 [label="(h1, m10): Write(u, 1)"];
+2 [label="(h1, m10): Done(m10)"];
+{ rank=same;  0; 1; 2; }
+0 -> 1 [label="PO"];
+1 -> 2 [label="PO"];
+}

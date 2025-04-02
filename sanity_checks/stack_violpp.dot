@@ -1,0 +1,81 @@
+digraph {
+rankdir = TB;
+subgraph cluster_h2 {
+rankdir = TB;
+subgraph cluster_m3 {
+rankdir = TB;
+17 [label="(h2, m3): Get(m3)"];
+18 [label="(h2, m3): Read(l, 1)"];
+19 [label="(h2, m3): Done(m3)"];
+color = "blue";
+label = "Message m3";
+}
+subgraph cluster_m2 {
+rankdir = TB;
+14 [label="(h2, m2): Get(m2)"];
+15 [label="(h2, m2): Write(l, 1)"];
+16 [label="(h2, m2): Done(m2)"];
+color = "blue";
+label = "Message m2";
+}
+subgraph cluster_m1 {
+rankdir = TB;
+10 [label="(h2, m1): Get(m1)"];
+11 [label="(h2, m1): Write(z, 1)"];
+12 [label="(h2, m1): Read(y, 1)"];
+13 [label="(h2, m1): Done(m1)"];
+color = "blue";
+label = "Message m1";
+}
+label = "Handler h2";
+}
+subgraph cluster_h1 {
+rankdir = TB;
+subgraph cluster_h11 {
+rankdir = TB;
+0 [label="(h1, h11): Get(h11)"];
+1 [label="(h1, h11): Read(z, 1)"];
+2 [label="(h1, h11): Post(h2, m2)"];
+3 [label="(h1, h11): Write(x, 1)"];
+4 [label="(h1, h11): Done(h11)"];
+color = "blue";
+label = "Message h11";
+}
+subgraph cluster_h12 {
+rankdir = TB;
+5 [label="(h1, h12): Get(h12)"];
+6 [label="(h1, h12): Read(x, 1)"];
+7 [label="(h1, h12): Post(h2, m3)"];
+8 [label="(h1, h12): Write(y, 1)"];
+9 [label="(h1, h12): Done(h12)"];
+color = "blue";
+label = "Message h12";
+}
+label = "Handler h1";
+}
+0 -> 1 [label="PO", color="green"];
+1 -> 2 [label="PO", color="green"];
+2 -> 3 [label="PO", color="green"];
+3 -> 4 [label="PO", color="green"];
+5 -> 6 [label="PO", color="green"];
+6 -> 7 [label="PO", color="green"];
+7 -> 8 [label="PO", color="green"];
+8 -> 9 [label="PO", color="green"];
+10 -> 11 [label="PO", color="green"];
+11 -> 12 [label="PO", color="green"];
+12 -> 13 [label="PO", color="green"];
+14 -> 15 [label="PO", color="green"];
+15 -> 16 [label="PO", color="green"];
+17 -> 18 [label="PO", color="green"];
+18 -> 19 [label="PO", color="green"];
+2 -> 14 [label="PB", color="brown"];
+7 -> 17 [label="PB", color="brown"];
+3 -> 6 [label="RF", color="red"];
+8 -> 12 [label="RF", color="red"];
+11 -> 1 [label="RF", color="red"];
+15 -> 18 [label="RF", color="red"];
+16 -> 17 [label="EO", color="magenta"];
+13 -> 17 [label="EO", color="magenta"];
+13 -> 14 [label="EO", color="magenta"];
+4 -> 5 [label="EO", color="magenta"];
+}

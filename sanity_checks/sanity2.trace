@@ -1,0 +1,6 @@
+@h1
+{get(m1) -> write(x13, 1) -> read(x41, 1) }
+{get(m2) -> write(x23, 1) -> read(x42, 1) }
+@h2
+{get(m3) -> read(x13, 1) -> read(x23, 1) -> write(x34, 1)}
+{get(m4) -> write(x41, 1) -> write(x42, 1) -> read(x34, 1)}

@@ -1,0 +1,79 @@
+digraph {
+rankdir = TB;
+subgraph cluster_h1 {
+rankdir = TB;
+subgraph cluster_init {
+rankdir = TB;
+0 [label="(h1, init): Get(init)"];
+1 [label="(h1, init): Post(h2, mid1)"];
+2 [label="(h1, init): Post(h2, mid2)"];
+3 [label="(h1, init): Done(init)"];
+color = "blue";
+label = "Message init";
+}
+label = "Handler h1";
+}
+subgraph cluster_h2 {
+rankdir = TB;
+subgraph cluster_mid2 {
+rankdir = TB;
+4 [label="(h2, mid2): Get(mid2)"];
+5 [label="(h2, mid2): Write(x, 1)"];
+6 [label="(h2, mid2): Post(h3, mid3)"];
+7 [label="(h2, mid2): Done(mid2)"];
+color = "blue";
+label = "Message mid2";
+}
+subgraph cluster_mid1 {
+rankdir = TB;
+8 [label="(h2, mid1): Get(mid1)"];
+9 [label="(h2, mid1): Write(x, 2)"];
+10 [label="(h2, mid1): Post(h3, mid4)"];
+11 [label="(h2, mid1): Done(mid1)"];
+color = "blue";
+label = "Message mid1";
+}
+label = "Handler h2";
+}
+subgraph cluster_h3 {
+rankdir = TB;
+subgraph cluster_mid3 {
+rankdir = TB;
+12 [label="(h3, mid3): Get(mid3)"];
+13 [label="(h3, mid3): Read(x, 2)"];
+14 [label="(h3, mid3): Done(mid3)"];
+color = "blue";
+label = "Message mid3";
+}
+subgraph cluster_mid4 {
+rankdir = TB;
+15 [label="(h3, mid4): Get(mid4)"];
+16 [label="(h3, mid4): Read(x, 1)"];
+17 [label="(h3, mid4): Done(mid4)"];
+color = "blue";
+label = "Message mid4";
+}
+label = "Handler h3";
+}
+0 -> 1 [label="PO", color="green"];
+1 -> 2 [label="PO", color="green"];
+2 -> 3 [label="PO", color="green"];
+4 -> 5 [label="PO", color="green"];
+5 -> 6 [label="PO", color="green"];
+6 -> 7 [label="PO", color="green"];
+8 -> 9 [label="PO", color="green"];
+9 -> 10 [label="PO", color="green"];
+10 -> 11 [label="PO", color="green"];
+12 -> 13 [label="PO", color="green"];
+13 -> 14 [label="PO", color="green"];
+15 -> 16 [label="PO", color="green"];
+16 -> 17 [label="PO", color="green"];
+9 -> 5 [label="CO", color="blue"];
+1 -> 8 [label="PB", color="brown"];
+2 -> 4 [label="PB", color="brown"];
+6 -> 12 [label="PB", color="brown"];
+10 -> 15 [label="PB", color="brown"];
+5 -> 16 [label="RF", color="red"];
+9 -> 13 [label="RF", color="red"];
+13 -> 5 [label="FR", color="purple"];
+}
