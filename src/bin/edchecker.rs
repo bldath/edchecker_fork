@@ -40,7 +40,7 @@ fn run_check(mut g: EGraph, data: &EGraphData, cli: &Cli) -> Option<EGraph> {
     let _numcases = i128::pow(2, missing_eo.len() as u32);
     //println!("Missing MO: {:?}", missing_mo.iter().map(|(x, y)| (g[*x].clone(), g[*y].clone())).collect_vec());
     // println!("Missing EO: {:?}", missing_eo.len());
-    for (_i, (_q, g)) in eo_cases(&g, data, &missing_eo).enumerate() {
+    for (_q, g) in eo_cases(&g, data, &missing_eo) {
         match cli.adt {
             ADT::Multiset => {
                 let g_multiset = multiset_do(g.clone());
