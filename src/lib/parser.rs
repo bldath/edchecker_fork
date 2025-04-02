@@ -2,7 +2,10 @@ use itertools::Itertools;
 use log::{debug, info};
 use regex::Regex;
 use std::{
-    collections::HashMap, fs, iter::{self, Chain}, str::FromStr
+    collections::HashMap,
+    fs,
+    iter::{self, Chain},
+    str::FromStr,
 };
 
 use crate::model::{self, EGraph, EPair, EdgeTp, EdgeTp::*, Event, Handler, Message, ReadResult};
@@ -32,7 +35,7 @@ pub fn parse_event(s: &String) -> Option<Event> {
     None
 }
 
-pub fn list_to_message(l: &Vec<String>) -> Option<Message> {
+pub fn list_to_message(l: &[String]) -> Option<Message> {
     let get_msg = &l[0];
     let events = l.iter().skip(1);
 
@@ -44,8 +47,7 @@ pub fn list_to_message(l: &Vec<String>) -> Option<Message> {
         panic!("What {}", get_msg);
     };
 
-
-    let sevs = events.filter_map(|e| parse_event(e));
+    let sevs = events.filter_map(parse_event);
 
     let head = vec![Event::Get(mid.into())];
     let evs: Vec<Event> = head.into_iter().chain(sevs).collect();
@@ -69,7 +71,7 @@ pub fn parse_edgetp(s: &str) -> Option<EdgeTp> {
     }
 }
 
-pub fn parse_edges(s: &String) -> Vec<(EdgeTp, Event, Event)> {
+pub fn parse_edges(s: &str) -> Vec<(EdgeTp, Event, Event)> {
     let et = parse_edgetp(&s[1..3]).unwrap();
 
     let q = String::from_str(&s[4..]).unwrap();
@@ -84,18 +86,18 @@ pub fn parse_edges(s: &String) -> Vec<(EdgeTp, Event, Event)> {
     chains
         .iter()
         .flat_map(|c| {
-            c.into_iter()
-                .filter_map(|x| parse_event(x))
+            c.iter()
+                .filter_map(parse_event)
                 .combinations(2)
                 .map(|ls| (et, ls[0].clone(), ls[1].clone()))
         })
         .collect_vec()
 }
 
-pub fn parse_str(s: &String) -> ReadResult {
+pub fn parse_str(s: &str) -> ReadResult {
     let mut handlers = HashMap::<String, HashMap<String, Vec<Event>>>::new();
     let mut active_handler: String = "NONE".into();
-    let strs: Vec<String> = s.split('$').map(|x| x.replace('\n', " ").into()).collect();
+    let strs: Vec<String> = s.split('$').map(|x| x.replace('\n', " ")).collect();
     let handler_strs: Vec<String> = strs[0].split('@').skip(1).map(|x| x.into()).collect();
 
     let msg_regex = Regex::new(r"\{.*\}").unwrap();
@@ -111,20 +113,20 @@ pub fn parse_str(s: &String) -> ReadResult {
             let m: Vec<Vec<String>> = v
                 .iter()
                 .skip(1)
-                .map(|ms| {
-                    ms.split("->")
-                        .map(|x| x.trim().replace(' ', "").into())
-                        .collect()
-                })
+                .map(|ms| ms.split("->").map(|x| x.trim().replace(' ', "")).collect())
                 .collect();
 
             // Now we have the events as text! Time to map them to Messages!
-            let msgs = m.iter().filter_map(|x| list_to_message(x)).map(|msg| (msg.id, msg.evs)).collect();
+            let msgs = m
+                .iter()
+                .filter_map(|s| list_to_message(s))
+                .map(|msg| (msg.id, msg.evs))
+                .collect();
             (hid, msgs)
         })
         .collect();
 
-    let edges = strs.iter().skip(1).flat_map(|seq| parse_edges(seq));
+    let edges = strs.iter().skip(1).flat_map(|x| parse_edges(x));
 
     // Get EO from the order handlers appear in the trace
     // let eit = edges.chain(q.iter().flat_map(| hdl | {

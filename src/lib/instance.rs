@@ -4,9 +4,13 @@ use ast::{forall_const, Ast, Bool};
 use itertools::Itertools;
 
 use petgraph::algo::has_path_connecting;
-use z3::{*, ast::Dynamic};
+use z3::{ast::Dynamic, *};
 
-use crate::{cli::ADT, model::{EdgeTp, Event, ExecutionGraph, ReadResult}, msg_algorithms::transitive_closure};
+use crate::{
+    cli::ADT,
+    model::{EdgeTp, Event, ExecutionGraph, ReadResult},
+    msg_algorithms::transitive_closure,
+};
 
 type Idx = (String, String, usize);
 pub struct Instance {
@@ -18,14 +22,18 @@ pub struct Instance {
 }
 
 impl Instance {
-
     fn new(data: &ReadResult) -> Self {
         let (data, edges) = data;
-        let iter = data.iter().flat_map(|(hdl, msgs)| {
-            msgs.iter().flat_map(|(mid, evs)| {
-                evs.iter().enumerate().map(|(idx, ev)| (hdl.clone(), mid.clone(), idx.clone(), ev.clone()))
+        let iter = data
+            .iter()
+            .flat_map(|(hdl, msgs)| {
+                msgs.iter().flat_map(|(mid, evs)| {
+                    evs.iter()
+                        .enumerate()
+                        .map(|(idx, ev)| (hdl.clone(), mid.clone(), idx, ev.clone()))
+                })
             })
-        }).collect_vec();
+            .collect_vec();
 
         let mut writers = HashMap::<(String, String), Idx>::new();
         let mut readers = HashMap::<(String, String), Vec<Idx>>::new();
@@ -34,32 +42,59 @@ impl Instance {
         for (hdl, mid, idx, ev) in iter {
             let this = (hdl.clone(), mid.clone(), idx);
             match ev {
-                Event::Write(var, val) => { writers.insert((var.clone(), val.clone()), this); },
-                Event::Read(var, val) => {
-                    readers.entry((var.clone(), val.clone())).or_insert(vec![]).push(this);
+                Event::Write(var, val) => {
+                    writers.insert((var.clone(), val.clone()), this);
                 }
-                Event::Post(hdl, msg) => { posts.insert((hdl.clone(), msg.clone()), this); }
+                Event::Read(var, val) => {
+                    readers
+                        .entry((var.clone(), val.clone()))
+                        .or_default()
+                        .push(this);
+                }
+                Event::Post(hdl, msg) => {
+                    posts.insert((hdl.clone(), msg.clone()), this);
+                }
                 _ => {}
             }
         }
 
-        let rf = readers.iter().flat_map(|(vv, reads)| {
-            let write = writers.get(vv).unwrap();
-            reads.iter().map(|r| (EdgeTp::RF, write.clone(), r.clone())).collect_vec()
-        }).collect_vec();
+        let rf = readers
+            .iter()
+            .flat_map(|(vv, reads)| {
+                let write = writers.get(vv).unwrap();
+                reads
+                    .iter()
+                    .map(|r| (EdgeTp::RF, write.clone(), r.clone()))
+                    .collect_vec()
+            })
+            .collect_vec();
 
-        let pb = posts.iter().map(|((hdl, msg), post)| {
-            (EdgeTp::PB, post.clone(), (hdl.clone(), msg.clone(), 0 as usize))
-        }).collect_vec();
+        let pb = posts
+            .iter()
+            .map(|((hdl, msg), post)| {
+                (
+                    EdgeTp::PB,
+                    post.clone(),
+                    (hdl.clone(), msg.clone(), 0_usize),
+                )
+            })
+            .collect_vec();
 
-        let co = edges.iter().filter_map(|q| {
-            if let (EdgeTp::CO, Event::Write(var, val), Event::Write(var2, val2)) = q {
-                Some((EdgeTp::CO, writers[&(var.clone(), val.clone())].clone(), writers[&(var2.clone(), val2.clone())].clone()))
-            } else {
-                //println!("Not a CO edge: {:?}", q);
-                None
-            }
-        }).collect_vec();
+        let co = edges
+            .iter()
+            .filter_map(|q| {
+                if let (EdgeTp::CO, Event::Write(var, val), Event::Write(var2, val2)) = q {
+                    Some((
+                        EdgeTp::CO,
+                        writers[&(var.clone(), val.clone())].clone(),
+                        writers[&(var2.clone(), val2.clone())].clone(),
+                    ))
+                } else {
+                    //println!("Not a CO edge: {:?}", q);
+                    None
+                }
+            })
+            .collect_vec();
 
         let fr = vec![];
 
@@ -72,44 +107,79 @@ impl Instance {
         }
     }
 
+    fn distill(self, ctx: &Context) -> DistilledInstance<'_> {
+        let messages: HashMap<String, HashMap<String, usize>> = self
+            .data
+            .iter()
+            .map(|(hdl, msgs)| {
+                (
+                    hdl.clone(),
+                    msgs.iter()
+                        .map(|(mid, evs)| (mid.clone(), evs.len()))
+                        .collect(),
+                )
+            })
+            .collect();
 
-    fn distill<'ctx> (self, ctx: &'ctx Context) -> DistilledInstance<'ctx> {
-        let messages : HashMap<String, HashMap<String, usize>> = self.data.iter().map(| (hdl, msgs) | {
-            (hdl.clone(), msgs.iter().map(|(mid, evs)| (mid.clone(), evs.len())).collect())
-        }).collect();
-
-        let msg_ids: Vec<(String, String, String, usize)> = messages.iter().flat_map(| (hdl, msg) | {
-            msg.iter().flat_map(move | (mid, len) | (0..*len).map(move |i| (format!("{}_{}_{}", hdl, mid, i), hdl.clone(), mid.clone(), i)))
-        }).collect_vec();
-
+        let msg_ids: Vec<(String, String, String, usize)> = messages
+            .iter()
+            .flat_map(|(hdl, msg)| {
+                msg.iter().flat_map(move |(mid, len)| {
+                    (0..*len).map(move |i| {
+                        (
+                            format!("{}_{}_{}", hdl, mid, i),
+                            hdl.clone(),
+                            mid.clone(),
+                            i,
+                        )
+                    })
+                })
+            })
+            .collect_vec();
 
         let (tp, const_vec, check_vec) = Sort::enumeration(
-            &ctx, 
-            "Msg".into(), 
-            &msg_ids.iter().map(|x| x.0.clone().into()).collect_vec()
+            ctx,
+            "Msg".into(),
+            &msg_ids.iter().map(|x| x.0.clone().into()).collect_vec(),
         );
 
         //println!("Message sort: {:?}", const_vec);
 
         //println!("Creating consts");
-        let consts: HashMap<Idx, Dynamic<'_>> = msg_ids.iter().cloned().map(move | (x, y, z, w) | (y, z, w)).zip(const_vec.into_iter().map(|x| x.apply(&[]))).collect();
+        let consts: HashMap<Idx, Dynamic<'_>> = msg_ids
+            .iter()
+            .cloned()
+            .map(move |(x, y, z, w)| (y, z, w))
+            .zip(const_vec.into_iter().map(|x| x.apply(&[])))
+            .collect();
         let indices = consts.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
 
         //println!("Consts: {:?}", consts);
         //println!("Creating checks");
-        let checks: HashMap<Idx, FuncDecl<'_>> = msg_ids.iter().cloned().map(move |(x, y, z, w)| (y, z, w)).zip(check_vec.into_iter()).collect();
+        let checks: HashMap<Idx, FuncDecl<'_>> = msg_ids
+            .iter()
+            .cloned()
+            .map(move |(x, y, z, w)| (y, z, w))
+            .zip(check_vec)
+            .collect();
 
-        let edges = self.rf.iter().chain(self.co.iter()).chain(self.pb.iter()).chain(self.fr.iter()).cloned().collect_vec();
+        let edges = self
+            .rf
+            .iter()
+            .chain(self.co.iter())
+            .chain(self.pb.iter())
+            .chain(self.fr.iter())
+            .cloned()
+            .collect_vec();
         //println!("Edges: {:?}", edges);
-
 
         let order = FuncDecl::partial_order(ctx, &tp, 0);
         //let order = FuncDecl::new(ctx, "hb", &[&tp, &tp], &Sort::bool(ctx));
-        
+
         //println!("Returning distilled instance");
         DistilledInstance {
             z3_ctx: ctx,
-            solver : Solver::new(ctx),
+            solver: Solver::new(ctx),
             events: messages,
             msg_type: tp,
             order,
@@ -118,11 +188,8 @@ impl Instance {
             checks,
             edges,
         }
-
     }
-
 }
-
 
 pub struct DistilledInstance<'ctx> {
     z3_ctx: &'ctx Context,
@@ -136,32 +203,8 @@ pub struct DistilledInstance<'ctx> {
     edges: Vec<(EdgeTp, Idx, Idx)>,
 }
 
-
-pub fn union_order<'ctx>(ctx: &'ctx Context, ords: &'ctx Vec<FuncDecl<'ctx>>) -> Box<dyn Fn(&Dynamic<'ctx>, &Dynamic<'ctx>) -> Bool<'ctx> + 'ctx> {
-    let q: Vec<_> = ords.iter().collect_vec();
-
-    Box::new(move |a: &Dynamic<'ctx>, b: &Dynamic<'ctx>| {
-        Bool::or(ctx, &q.iter().map(|x| x.apply(&[a, b]).as_bool().unwrap()).collect_vec())
-    })
-}
-
-
-pub fn mk_ord<'ctx>(ctx: &'ctx Context, name : &str, msg_type: &Sort<'ctx>, ord_id: &mut usize) -> FuncDecl<'ctx> {
-    let ord = FuncDecl::new(
-        ctx,
-        name,
-        &[msg_type, msg_type],
-        &Sort::bool(ctx)
-    );
-    *ord_id += 1;
-
-    ord
-}
-
 impl<'ctx> DistilledInstance<'ctx> {
-
     pub fn assert(&self, solver: &Solver) {
-
         let ctx: &Context = self.z3_ctx;
         let (msg_type, consts, checks) = (&self.msg_type, &self.consts, &self.checks);
 
@@ -180,7 +223,7 @@ impl<'ctx> DistilledInstance<'ctx> {
                     let constvl2 = &consts[&this];
                     solver.assert(&hb.apply(&[constvl, constvl2]).as_bool().unwrap());
                     solver.assert(&hb.apply(&[constvl2, constvl]).as_bool().unwrap().not());
-                }       
+                }
             }
         }
 
@@ -190,17 +233,21 @@ impl<'ctx> DistilledInstance<'ctx> {
             match (consts.get(m1), consts.get(m2)) {
                 (Some(constvl), Some(constvl2)) => {
                     solver.assert(&hb.apply(&[constvl, constvl2]).as_bool().unwrap());
-                },
+                }
                 _ => {
                     println!("Failed to find consts for edge {:?} -> {:?}", m1, m2);
-                },
+                }
             }
         }
 
         // FR edges
         //println!("FR edges");
         let co = self.edges.iter().filter(|(tp, _, _)| *tp == EdgeTp::CO);
-        let rf = self.edges.iter().filter(|(tp, _, _)| *tp == EdgeTp::RF).collect_vec();
+        let rf = self
+            .edges
+            .iter()
+            .filter(|(tp, _, _)| *tp == EdgeTp::RF)
+            .collect_vec();
 
         for (_, a, b) in co {
             for (_, c, d) in rf.iter() {
@@ -209,14 +256,13 @@ impl<'ctx> DistilledInstance<'ctx> {
                 let c = &consts[c];
                 let d = &consts[d];
 
-                if c != a { continue } // We have d --[rf^-1 . co]-> b
+                if c != a {
+                    continue;
+                } // We have d --[rf^-1 . co]-> b
 
                 solver.assert(&hb.apply(&[d, b]).as_bool().unwrap());
             }
         }
-
-
-
 
         // EO requirement
         //println!("EO requirement");
@@ -225,7 +271,7 @@ impl<'ctx> DistilledInstance<'ctx> {
             for (m1, m2) in msgs.iter().tuple_combinations() {
                 // And every pair of messages in that handler
                 println!("{:?} {:?}", m1, m2);
-                let m1getidx : &Idx = &(hdl.clone(), m1.0.clone(), 0 as usize); 
+                let m1getidx: &Idx = &(hdl.clone(), m1.0.clone(), 0_usize);
                 let m1get = &consts[m1getidx];
                 let m1done = &consts[&(hdl.clone(), m1.0.clone(), *m1.1 - 1)];
                 let m2get = &consts[&(hdl.clone(), m2.0.clone(), 0)];
@@ -236,7 +282,7 @@ impl<'ctx> DistilledInstance<'ctx> {
                 let m12 = &hb.apply(&[m1done, m2get]).as_bool().unwrap();
                 let m21 = &hb.apply(&[m2done, m1get]).as_bool().unwrap();
 
-                solver.assert(&Bool::or(&ctx, &[m12, m21]));
+                solver.assert(&Bool::or(ctx, &[m12, m21]));
             }
         }
 
@@ -244,9 +290,8 @@ impl<'ctx> DistilledInstance<'ctx> {
         //println!("{:?}", solver);
     }
 
-
     pub fn add_do(&self, solver: &Solver, adt: ADT) {
-          match adt {
+        match adt {
             ADT::Multiset => (),
             ADT::Queue => self.queue_do(solver),
             ADT::Stack => self.stack_do(solver),
@@ -259,27 +304,34 @@ impl<'ctx> DistilledInstance<'ctx> {
         let consts = &self.consts;
         let hb = &self.order;
 
-
         //println!("Adding queue do edges");
         // do = pb^{-1} . mo . pb
 
-        let pb = 
-            self.edges
-                .iter()
-                .filter(|(tp, _, _)| *tp == EdgeTp::PB)
-                .map(|(_, a, b)| (a, b));
+        let pb = self
+            .edges
+            .iter()
+            .filter(|(tp, _, _)| *tp == EdgeTp::PB)
+            .map(|(_, a, b)| (a, b));
         // MO is represented by hb. If hb then mo.
 
         let pairs = pb.permutations(2).map(|it| (it[0], it[1]));
 
         for ((ai, bi), (ci, di)) in pairs {
+            if let (Some(a), Some(b), Some(c), Some(d)) = (
+                consts.get(ai),
+                consts.get(bi),
+                consts.get(ci),
+                consts.get(di),
+            ) {
+                if a == c {
+                    continue;
+                } // We do not want to add do edges for the same message
+                if di.0 != bi.0 {
+                    continue;
+                } // We need to be on the same handler
+                  //println!("Adding do edge constraint: {:?} -> {:?}", b, d);
 
-                if let (Some(a), Some(b), Some(c), Some(d)) = (consts.get(ai), consts.get(bi), consts.get(ci), consts.get(di)) {
-                    if a == c { continue } // We do not want to add do edges for the same message
-                if di.0 != bi.0 { continue } // We need to be on the same handler
-                //println!("Adding do edge constraint: {:?} -> {:?}", b, d);
-
-                // We know: 
+                // We know:
                 //      a (post) --[pb] -> b (get)
                 //      c (post) --[pb] -> d (get)
                 // Now, if a --[hb] -> c
@@ -292,38 +344,32 @@ impl<'ctx> DistilledInstance<'ctx> {
 
                 let bd = hb.apply(&[b_done, d]).as_bool().unwrap();
                 solver.assert(&ac.implies(&bd));
-                    
-                    
-                    
-                    
             } else {
                 continue;
             }
         }
-
     }
 
     fn stack_do(&self, solver: &Solver) {}
     fn reg_do(&self, solver: &Solver) {}
-
 }
 
-
-pub fn construct_instance<'ctx>(ctx: &'ctx Context, read_res: &ReadResult) -> DistilledInstance<'ctx> {
-
+pub fn construct_instance<'ctx>(
+    ctx: &'ctx Context,
+    read_res: &ReadResult,
+) -> DistilledInstance<'ctx> {
     let instance = Instance::new(read_res);
-    let solver = Solver::new(&ctx);
+    let solver = Solver::new(ctx);
 
-    let mut params = Params::new(&ctx);
+    let mut params = Params::new(ctx);
     params.set_bool("model.compact", false);
     solver.set_params(&params);
 
     //println!("Distilling instance");
 
-    let distilled = instance.distill(&ctx);
+    let distilled = instance.distill(ctx);
     distilled
 }
-
 
 #[test]
 pub fn test_order() {
@@ -331,7 +377,11 @@ pub fn test_order() {
     let ctx = Context::new(&cfg);
     let solver = Solver::new(&ctx);
 
-    let (fintype, fintype_consts, fintype_check) = Sort::enumeration(&ctx, "Fintype".into(), &["A".into(), "B".into(), "C".into()]);
+    let (fintype, fintype_consts, fintype_check) = Sort::enumeration(
+        &ctx,
+        "Fintype".into(),
+        &["A".into(), "B".into(), "C".into()],
+    );
 
     let x = fintype_consts[0].apply(&[]);
     let y = fintype_consts[1].apply(&[]);

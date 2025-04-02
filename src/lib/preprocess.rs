@@ -1,5 +1,3 @@
-
-
 use crate::model::EdgeTp::*;
 
 use crate::cli::ADT;
@@ -16,12 +14,12 @@ use crate::{
     model::*,
 };
 
-pub fn preprocess(g: &mut EGraph, data: &EGraphData, heur: Heuristic, adt : ADT) {
+pub fn preprocess(g: &mut EGraph, data: &EGraphData, heur: Heuristic, adt: ADT) {
     add_pb(g);
     add_rf(g);
     add_fr(g);
     //add_co(g); //Is done manually
-    add_heuristics(g, &data, heur, adt);
+    add_heuristics(g, data, heur, adt);
     //deduce_eo(g);
 }
 
@@ -89,7 +87,7 @@ pub fn quad_fmap<V, E, Q>(
 }
 
 fn add_pb(g: &mut EGraph) {
-    let new_edges: Vec<(NodeIndex, NodeIndex)> = get_pairs(&g, |x, y| -> bool {
+    let new_edges: Vec<(NodeIndex, NodeIndex)> = get_pairs(g, |x, y| -> bool {
         match (&g[x], &g[y]) {
             (EPair(hdl, _, Event::Post(to, sent)), EPair(hdl2, gotten, Event::Get(mid))) => {
                 sent == gotten
@@ -104,7 +102,7 @@ fn add_pb(g: &mut EGraph) {
 }
 
 fn add_fr(g: &mut EGraph) {
-    let new_edges = triple_fmap(&g, |x, y, z| {
+    let new_edges = triple_fmap(g, |x, y, z| {
         if let Some(e1) = g.edges_connecting(y, x).find(|e| *e.weight() == RF) {
             if let Some(e2) = g.edges_connecting(y, z).find(|e| *e.weight() == CO) {
                 return Some((FR, x, z));
@@ -118,7 +116,7 @@ fn add_fr(g: &mut EGraph) {
 }
 
 fn add_rf(g: &mut EGraph) {
-    let new_edges = get_pairs(&g, |x, y| match (&g[x], &g[y]) {
+    let new_edges = get_pairs(g, |x, y| match (&g[x], &g[y]) {
         (EPair(_, _, Event::Write(var, val)), EPair(_, _, Event::Read(var2, val2))) => {
             var == var2 && val == val2
         }
@@ -131,8 +129,8 @@ fn add_rf(g: &mut EGraph) {
 }
 
 fn add_co(g: &mut EGraph) {
-    return ();
-    let new_edges = get_quadruples(&g, |x, y, z, w| match (&g[x], &g[y], &g[z], &g[w]) {
+    return;
+    let new_edges = get_quadruples(g, |x, y, z, w| match (&g[x], &g[y], &g[z], &g[w]) {
         (epW!(var, val), epW!(var2, val2), epR!(var3, val3), epR!(var4, val4)) => {
             var == var2
                 && var2 == var3
@@ -140,7 +138,7 @@ fn add_co(g: &mut EGraph) {
                 && val == val3
                 && val2 == val4
                 && val != val2
-                && po_rf_path(&g, z, w)
+                && po_rf_path(g, z, w)
         }
         _ => false,
     });

@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt::{Debug, Display}, path};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display},
+    path,
+};
 
 use itertools::iproduct;
 use petgraph::{
@@ -30,13 +34,12 @@ pub enum Event {
     Get(Argument),
 }
 
-
 impl Event {
     pub fn variable(&self) -> Option<Argument> {
         match self {
             Event::Write(v, _) => Some(v.clone()),
             Event::Read(v, _) => Some(v.clone()),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -68,19 +71,24 @@ pub struct Message {
 
 pub fn mk_dot_safe(arg: &str) -> String {
     arg.replace(" ", "_")
-       .replace("(", "")
-       .replace(")", "")
-       .replace(".", "_")
-       .replace("-", "_")
+        .replace("(", "")
+        .replace(")", "")
+        .replace(".", "_")
+        .replace("-", "_")
 }
-
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct EPair(pub Argument, pub Argument, pub Event);
 
 impl Debug for EPair {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {}): {}", mk_dot_safe(&self.0), mk_dot_safe(&self.1), &self.2)
+        write!(
+            f,
+            "({}, {}): {}",
+            mk_dot_safe(&self.0),
+            mk_dot_safe(&self.1),
+            &self.2
+        )
     }
 }
 
@@ -144,7 +152,10 @@ pub struct Handler {
 
 //pub struct ReadResult(pub Vec<Handler>, pub Vec<(EdgeTp, Event, Event)>);
 
-pub type ReadResult = (HashMap<String, HashMap<String, Vec<Event>>>, Vec<(EdgeTp, Event, Event)>);
+pub type ReadResult = (
+    HashMap<String, HashMap<String, Vec<Event>>>,
+    Vec<(EdgeTp, Event, Event)>,
+);
 
 pub type HandlerData = HashMap<Argument, Vec<NodeIndex>>;
 pub type EGraphData = HashMap<Argument, HandlerData>;
@@ -185,7 +196,7 @@ pub fn mk_graph(rr: &ReadResult) -> ExecutionGraph {
         let (et, from, to) = e;
         if let Some(f) = d.node_indices().find(|x| &d[*x].2 == from) {
             if let Some(t) = d.node_indices().find(|x| &d[*x].2 == to) {
-                d.add_edge(f, t, et.clone());
+                d.add_edge(f, t, *et);
             } else {
                 println!("Could not find event {:?} in graph:\n{:?}", to, d);
             }

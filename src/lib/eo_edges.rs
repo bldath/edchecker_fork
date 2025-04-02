@@ -12,20 +12,20 @@ use petgraph::visit::{
 use petgraph::{Graph, IntoWeightedEdge};
 
 use crate::algorithms::add_edges;
+use crate::cli::*;
+use crate::do_edges::get_post;
 use crate::model::{get_mgraph, Argument, EGraphData, EPair, Event};
 use crate::msg_algorithms::{flip_iter, flip_iterator};
 use crate::preprocess::{pair_fmap, quad_fmap};
-use crate::cli::*;
-use crate::do_edges::get_post;
 use crate::{model::EGraph, preprocess::triple_fmap};
 
 use crate::model::EdgeTp::{self, *};
 
 pub fn mo_cases<'a>(
     g: &'a EGraph,
-    missing: &'a Vec<(NodeIndex, NodeIndex)>,
+    missing: &'a [(NodeIndex, NodeIndex)],
 ) -> impl Iterator<Item = EGraph> + 'a {
-    flip_iter(&missing).map(|q| {
+    flip_iter(missing).map(|q| {
         let mut gp = g.clone();
         for (q1, q2) in q {
             gp.add_edge(q1, q2, MO);
@@ -33,7 +33,6 @@ pub fn mo_cases<'a>(
         gp
     })
 }
-
 
 // pub fn make_guesses<'a>(
 //     g: &'a EGraph,
@@ -51,16 +50,15 @@ pub fn mo_cases<'a>(
 //         insert_eo(&mut g2.clone(), data, hdl.clone(), m2.clone(), m1.clone());
 //         add_heuristics(&mut g2, data, heur, adt);
 
-
 //     }
 // }
 
 pub fn eo_cases<'a>(
     g: &'a EGraph,
     data: &'a EGraphData,
-    missing: &'a Vec<(Argument, Argument, Argument)>,
+    missing: &'a [(Argument, Argument, Argument)],
 ) -> impl Iterator<Item = (Vec<(Argument, Argument, Argument)>, EGraph)> + 'a {
-    flip_iterator(&missing).map(move |q| {
+    flip_iterator(missing).map(move |q| {
         let mut gp = g.clone();
         for (hdl, q1, q2) in &q {
             insert_eo(&mut gp, data, hdl.clone(), q1.clone(), q2.clone());
@@ -69,17 +67,23 @@ pub fn eo_cases<'a>(
     })
 }
 
-pub fn missing_eo(g: &EGraph, data : &EGraphData) -> Vec<(Argument, Argument, Argument)> {
-    let mut q : HashSet<(Argument, Argument, Argument)> = data.iter().flat_map(| (hdl, msgs) | {
-        msgs.iter().tuple_combinations().filter_map(| ((m1, m1e), (m2, m2e)) | {
-            if m1 != m2 {
-                if !g.contains_edge(*m1e.last().unwrap(), *m2e.first().unwrap()) && !g.contains_edge(*m2e.last().unwrap(), *m1e.first().unwrap()) {
-                    return Some((hdl.clone(), m1.clone(), m2.clone()))
-                }
-            }
-            None
+pub fn missing_eo(g: &EGraph, data: &EGraphData) -> Vec<(Argument, Argument, Argument)> {
+    let mut q: HashSet<(Argument, Argument, Argument)> = data
+        .iter()
+        .flat_map(|(hdl, msgs)| {
+            msgs.iter()
+                .tuple_combinations()
+                .filter_map(|((m1, m1e), (m2, m2e))| {
+                    if m1 != m2
+                        && !g.contains_edge(*m1e.last().unwrap(), *m2e.first().unwrap())
+                        && !g.contains_edge(*m2e.last().unwrap(), *m1e.first().unwrap())
+                    {
+                        return Some((hdl.clone(), m1.clone(), m2.clone()));
+                    }
+                    None
+                })
         })
-    }).collect();
+        .collect();
 
     q.into_iter().collect_vec()
 }
@@ -87,8 +91,7 @@ pub fn missing_eo(g: &EGraph, data : &EGraphData) -> Vec<(Argument, Argument, Ar
 pub fn missing_mo(g: &EGraph, data: &EGraphData) -> Vec<(bool, NodeIndex, NodeIndex)> {
     data.iter()
         .flat_map(|(hdl, msgs)| {
-            msgs
-                .iter()
+            msgs.iter()
                 .tuple_combinations()
                 .filter_map(|((m1, e1), (m2, e2))| {
                     let m1get = *e1.first().unwrap();
@@ -97,7 +100,7 @@ pub fn missing_mo(g: &EGraph, data: &EGraphData) -> Vec<(bool, NodeIndex, NodeIn
                     let m2get = *e2.first().unwrap();
                     let m2done = *e2.last().unwrap();
 
-                    if let (Some(m1post), Some(m2post)) = (get_post(&g, m1get), get_post(&g, m2get)) {
+                    if let (Some(m1post), Some(m2post)) = (get_post(g, m1get), get_post(g, m2get)) {
                         if has_path_connecting(g, m1post, m2post, None) {
                             Some((true, m1post, m2post))
                         } else if has_path_connecting(g, m2post, m1post, None) {
@@ -108,10 +111,10 @@ pub fn missing_mo(g: &EGraph, data: &EGraphData) -> Vec<(bool, NodeIndex, NodeIn
                     } else {
                         None
                     }
-            })
-        }).collect_vec()
+                })
+        })
+        .collect_vec()
 }
-
 
 fn insert_eo(g: &mut EGraph, data: &EGraphData, hdl: Argument, m1: Argument, m2: Argument) {
     let m1 = data[&hdl][&m1].last().unwrap();
@@ -134,10 +137,10 @@ fn insert_eo(g: &mut EGraph, data: &EGraphData, hdl: Argument, m1: Argument, m2:
 }
 
 fn get_fr(g: &mut EGraph) -> Vec<(EdgeTp, NodeIndex, NodeIndex)> {
-    triple_fmap(&g, |x, y, z| {
+    triple_fmap(g, |x, y, z| {
         if let Some(e1) = g.edges_connecting(y, x).find(|e| *e.weight() == RF) {
             if let Some(e2) = g.edges_connecting(y, z).find(|e| *e.weight() == CO) {
-                return Some((FR, x.clone(), z.clone()));
+                return Some((FR, x, z));
             }
         }
         None
@@ -165,17 +168,15 @@ where
     V: Clone,
     E: Clone + Eq,
 {
-    has_path_connecting(&proj_edges(&g, et), src.into(), dst.into(), None)
+    has_path_connecting(&proj_edges(g, et), src, dst, None)
 }
 
 pub fn get_eod(g: &EGraph) -> Vec<(EdgeTp, NodeIndex, NodeIndex)> {
-    let g_po = proj_edges(&g, PO);
-    quad_fmap(&g, |x, y, z, w| {
+    let g_po = proj_edges(g, PO);
+    quad_fmap(g, |x, y, z, w| {
         if let Some(yz) = g.edges_connecting(y, z).find(|e| *e.weight() == EO) {
-            if has_path_connecting(&g_po, y, x, None) {
-                if has_path_connecting(&g_po, z, w, None) {
-                    return Some((EOD, x, w));
-                }
+            if has_path_connecting(&g_po, y, x, None) && has_path_connecting(&g_po, z, w, None) {
+                return Some((EOD, x, w));
             }
         }
         None
@@ -185,6 +186,6 @@ pub fn get_eod(g: &EGraph) -> Vec<(EdgeTp, NodeIndex, NodeIndex)> {
 pub fn remove_eo(g: EGraph) -> EGraph {
     g.filter_map(
         |x, n| Some(n.clone()),
-        |e, w| if *w == EO { None } else { Some(w.clone()) },
+        |e, w| if *w == EO { None } else { Some(*w) },
     )
 }

@@ -1,4 +1,3 @@
-
 use crate::output::write_dot;
 use crate::{
     model::{EGraph, EdgeTp::*, MGraph, MGraphE},
@@ -15,7 +14,7 @@ pub fn transitive_closure<V, E>(g: &mut Graph<V, E>, ins_val: E)
 where
     E: Clone,
 {
-    let q = get_pairs(&g, |x, y| {
+    let q = get_pairs(g, |x, y| {
         x != y && !(g.contains_edge(x, y) || g.contains_edge(y, x))
     });
     let mut m = false;
@@ -34,71 +33,31 @@ where
     }
 }
 
-pub fn flip_iter<A>(v: &Vec<(A, A)>) -> impl Iterator<Item = Vec<(A, A)>> + '_
+pub fn flip_iter<A>(v: &[(A, A)]) -> impl Iterator<Item = Vec<(A, A)>> + '_
 where
     A: Clone,
 {
-    v.iter().map(|(a1, a2)| {
-        vec![(a1.clone(), a2.clone()), (a2.clone(), a1.clone())]
-    }).multi_cartesian_product()
+    v.iter()
+        .map(|(a1, a2)| vec![(a1.clone(), a2.clone()), (a2.clone(), a1.clone())])
+        .multi_cartesian_product()
 }
-
 
 // Given a vector of tuples, return an iterator consistingof all possible flips of the tuples.
 // For example, given [(1, 2), (3, 4)], the iterator will return [(1, 2), (3, 4)], [(2, 1), (3, 4)], [(1, 2), (4, 3)], [(2, 1), (4, 3)].
 // With th edge type added before.
-pub fn flip_iterator<A, B>(v: &Vec<(B, A, A)>) -> impl Iterator<Item = Vec<(B, A, A)>> + '_
+pub fn flip_iterator<A, B>(v: &[(B, A, A)]) -> impl Iterator<Item = Vec<(B, A, A)>> + '_
 where
     A: Clone,
     B: Clone,
 {
-    v.iter().map(|(b, a1, a2)| {
-        vec![
-            (b.clone(), a1.clone(), a2.clone()),
-            (b.clone(), a2.clone(), a1.clone()),
-        ]
-    }).multi_cartesian_product()
-}
-
-#[cfg(test)]
-mod alg_test {
-    use itertools::Itertools;
-
-    use crate::msg_algorithms::flip_iterator;
-
-    #[test]
-    fn flip_iterator_test() {
-        let q = vec![("a", 1, 2), ("b", 3, 4), ("c", 5, 6)];
-        let flipped = flip_iterator(&q).collect_vec();
-        let res = vec![
-            vec![("a", 1, 2), ("b", 3, 4), ("c", 5, 6)],
-            vec![("a", 1, 2), ("b", 3, 4), ("c", 6, 5)],
-            vec![("a", 1, 2), ("b", 4, 3), ("c", 5, 6)],
-            vec![("a", 1, 2), ("b", 4, 3), ("c", 6, 5)],
-            vec![("a", 2, 1), ("b", 3, 4), ("c", 5, 6)],
-            vec![("a", 2, 1), ("b", 3, 4), ("c", 6, 5)],
-            vec![("a", 2, 1), ("b", 4, 3), ("c", 5, 6)],
-            vec![("a", 2, 1), ("b", 4, 3), ("c", 6, 5)],
-        ];
-        println!("{:?}", flipped);
-        println!("{:?}", res);
-        assert!(flipped == res);
-    }
-
-    #[test]
-    fn flip_iterator_test2() {
-        let q = vec![("a", 1, 2), ("b", 3, 4)];
-        let flipped = flip_iterator(&q).collect_vec();
-        let res = vec![
-            vec![("a", 1, 2), ("b", 3, 4)],
-            vec![("a", 1, 2), ("b", 4, 3)],
-            vec![("a", 2, 1), ("b", 3, 4)],
-            vec![("a", 2, 1), ("b", 4, 3)],
-        ];
-        println!("{:?}", flipped);
-        println!("{:?}", res);
-        assert!(flipped == res);
-    }
+    v.iter()
+        .map(|(b, a1, a2)| {
+            vec![
+                (b.clone(), a1.clone(), a2.clone()),
+                (b.clone(), a2.clone(), a1.clone()),
+            ]
+        })
+        .multi_cartesian_product()
 }
 
 // pub fn get_total_mo(g : &MGraph) -> impl Iterator<Item = MGraph> {
@@ -169,5 +128,46 @@ pub fn extend_valid_queue(g: &EGraph, mg: &MGraph) -> bool {
         valid_queue(v) && extend_valid_multiset(g, mg)
     } else {
         false
+    }
+}
+
+#[cfg(test)]
+mod alg_test {
+    use itertools::Itertools;
+
+    use crate::msg_algorithms::flip_iterator;
+
+    #[test]
+    fn flip_iterator_test() {
+        let q = vec![("a", 1, 2), ("b", 3, 4), ("c", 5, 6)];
+        let flipped = flip_iterator(&q).collect_vec();
+        let res = vec![
+            vec![("a", 1, 2), ("b", 3, 4), ("c", 5, 6)],
+            vec![("a", 1, 2), ("b", 3, 4), ("c", 6, 5)],
+            vec![("a", 1, 2), ("b", 4, 3), ("c", 5, 6)],
+            vec![("a", 1, 2), ("b", 4, 3), ("c", 6, 5)],
+            vec![("a", 2, 1), ("b", 3, 4), ("c", 5, 6)],
+            vec![("a", 2, 1), ("b", 3, 4), ("c", 6, 5)],
+            vec![("a", 2, 1), ("b", 4, 3), ("c", 5, 6)],
+            vec![("a", 2, 1), ("b", 4, 3), ("c", 6, 5)],
+        ];
+        println!("{:?}", flipped);
+        println!("{:?}", res);
+        assert!(flipped == res);
+    }
+
+    #[test]
+    fn flip_iterator_test2() {
+        let q = vec![("a", 1, 2), ("b", 3, 4)];
+        let flipped = flip_iterator(&q).collect_vec();
+        let res = vec![
+            vec![("a", 1, 2), ("b", 3, 4)],
+            vec![("a", 1, 2), ("b", 4, 3)],
+            vec![("a", 2, 1), ("b", 3, 4)],
+            vec![("a", 2, 1), ("b", 4, 3)],
+        ];
+        println!("{:?}", flipped);
+        println!("{:?}", res);
+        assert!(flipped == res);
     }
 }

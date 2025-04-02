@@ -1,6 +1,8 @@
 use itertools::Itertools;
 use petgraph::{
-    dot::{Config, Dot}, visit::{EdgeIndexable, EdgeRef, NodeIndexable, NodeRef}, Graph
+    dot::{Config, Dot},
+    visit::{EdgeIndexable, EdgeRef, NodeIndexable, NodeRef},
+    Graph,
 };
 
 use crate::model::*;
@@ -10,17 +12,15 @@ use std::{
     io::{self, Error, Write},
 };
 
-
-fn make_dot<A>(graph : &ExecutionGraph, f: &mut A) -> Result<(), Error>
+fn make_dot<A>(graph: &ExecutionGraph, f: &mut A) -> Result<(), Error>
 where
-    A: Write
+    A: Write,
 {
     let (g, map) = graph;
 
     writeln!(f, "digraph {{")?;
     writeln!(f, "rankdir = TB;")?;
     for (handler, messages) in map {
-
         writeln!(f, "subgraph cluster_{} {{", mk_dot_safe(handler))?;
         writeln!(f, "rankdir = TB;")?;
         let mut h = vec![];
@@ -28,7 +28,12 @@ where
             writeln!(f, "subgraph cluster_{} {{", mk_dot_safe(m))?;
             writeln!(f, "rankdir = TB;")?;
             for &ev in evs {
-                writeln!(f, "{} [label=\"{:?}\"];", NodeIndexable::to_index(g, ev), g[ev])?;
+                writeln!(
+                    f,
+                    "{} [label=\"{:?}\"];",
+                    NodeIndexable::to_index(g, ev),
+                    g[ev]
+                )?;
                 h.push(ev);
             }
             writeln!(f, "color = \"blue\";")?;
@@ -42,30 +47,31 @@ where
 
     //writeln!(f, "edge [constraint=false]")?;
     for edge in g.edge_references() {
-        writeln!(f, "{:?} -> {:?} [label=\"{:?}\", color=\"{}\"];",
-                 NodeIndexable::to_index(g, edge.source()),
-                 NodeIndexable::to_index(g, edge.target()),
-                 g[edge.id()],
-                 match g.edge_weight(edge.id()).unwrap() {
-                     EdgeTp::RF => "red",
-                     EdgeTp::CO => "blue",
-                     EdgeTp::PO => "green",
-                     EdgeTp::EO => "magenta",
-                     EdgeTp::PB => "brown",
-                     EdgeTp::MO => "brown",
-                     EdgeTp::DO => "orange",
-                     EdgeTp::FR => "purple",
-                     EdgeTp::EOD => "cyan",
-                     EdgeTp::ANY => "black",
-                 }
+        writeln!(
+            f,
+            "{:?} -> {:?} [label=\"{:?}\", color=\"{}\"];",
+            NodeIndexable::to_index(g, edge.source()),
+            NodeIndexable::to_index(g, edge.target()),
+            g[edge.id()],
+            match g.edge_weight(edge.id()).unwrap() {
+                EdgeTp::RF => "red",
+                EdgeTp::CO => "blue",
+                EdgeTp::PO => "green",
+                EdgeTp::EO => "magenta",
+                EdgeTp::PB => "brown",
+                EdgeTp::MO => "brown",
+                EdgeTp::DO => "orange",
+                EdgeTp::FR => "purple",
+                EdgeTp::EOD => "cyan",
+                EdgeTp::ANY => "black",
+            }
         )?;
     }
     writeln!(f, "}}")?;
     Ok(())
 }
 
-pub fn write_dot(graph: &ExecutionGraph, filename: String, suffix : String) -> Result<(), Error>
-{
+pub fn write_dot(graph: &ExecutionGraph, filename: String, suffix: String) -> Result<(), Error> {
     if let Some(basename) = filename.split(".").next() {
         //let gr = Dot::new(&graph);
         //println!("Making dot! {}{}.dot", basename, suffix);
@@ -79,15 +85,18 @@ pub fn write_dot(graph: &ExecutionGraph, filename: String, suffix : String) -> R
     }
 }
 
-
-pub fn write_graph(graph : &ExecutionGraph, filename: String) -> Result<(), Error> {
+pub fn write_graph(graph: &ExecutionGraph, filename: String) -> Result<(), Error> {
     let mut f = File::create(filename)?;
 
     let (eg, hm) = graph;
     for (handler, msgs) in hm {
         writeln!(f, "@{}", handler)?;
         for (mid, evs) in msgs {
-            let evsp = evs.iter().take(evs.len() - 1).map(|x| format!("{}", eg[*x].2)).collect_vec();
+            let evsp = evs
+                .iter()
+                .take(evs.len() - 1)
+                .map(|x| format!("{}", eg[*x].2))
+                .collect_vec();
             writeln!(f, "{{ {} }}", evsp.join(" -> "))?;
         }
     }

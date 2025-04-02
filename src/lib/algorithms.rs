@@ -24,7 +24,6 @@ pub fn add_edges<I>(g: &mut EGraph, it: I)
 where
     I: IntoIterator<Item = (EdgeTp, NodeIndex, NodeIndex)>,
 {
-
     for (et, from, to) in it {
         //println!("Adding edge: {:?} -{:?}-> {:?}", g[from], et, g[to]);
         g.add_edge(from, to, et);
@@ -32,9 +31,9 @@ where
 }
 
 pub fn po_rf_path(g: &EGraph, a: NodeIndex, b: NodeIndex) -> bool {
-    let fg = EdgeFiltered::from_fn(&g, |e_ref| vec![PO, RF].contains(e_ref.weight()));
+    let fg = EdgeFiltered::from_fn(&g, |e_ref| [PO, RF].contains(e_ref.weight()));
 
-    has_path_connecting(&fg, a.into(), b.into(), None)
+    has_path_connecting(&fg, a, b, None)
 }
 
 fn missing_co(g: &EGraph) -> Vec<(EdgeTp, NodeIndex, NodeIndex)> {
@@ -77,15 +76,14 @@ pub fn last_evt(g: &EGraph, mid: &Argument) -> Option<NodeIndex> {
         g.edges_directed(*m, Outgoing)
             .filter(|x| *x.weight() == PO)
             .collect_vec()
-            .len()
-            == 0
+            .is_empty()
     });
 
     q
 }
 
 fn proj_graph(g: &EGraph, mevs: Vec<NodeIndex>, vec: Vec<EdgeTp>) -> EGraph {
-    let q = g.filter_map(
+    g.filter_map(
         |x, et| {
             if mevs.contains(&x) {
                 Some(et.clone())
@@ -95,13 +93,12 @@ fn proj_graph(g: &EGraph, mevs: Vec<NodeIndex>, vec: Vec<EdgeTp>) -> EGraph {
         },
         |x, et| {
             if vec.contains(et) {
-                Some(et.clone())
+                Some(*et)
             } else {
                 None
             }
         },
-    );
-    q
+    )
 }
 
 // pub fn add_eo2(g : &mut EGraph, mid1 : &Argument, mid2 : &Argument) {

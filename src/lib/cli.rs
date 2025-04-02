@@ -1,15 +1,14 @@
+use crate::heuristics::Heuristic;
 use clap::{Parser, ValueEnum};
 use clap_verbosity_flag::Verbosity;
-use crate::heuristics::Heuristic;
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 pub enum ADT {
     Multiset,
     Queue,
     Stack,
-    Register
+    Register,
 }
-
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about=None)]
@@ -22,7 +21,6 @@ pub struct Cli {
 
     #[arg(value_enum)]
     pub heuristics: Heuristic,
-
 
     pub file: String,
     /// Print output graphs to dotfiles with name <FILE>.dot and <FILE>_ok.dot if check succeeds.

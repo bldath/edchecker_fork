@@ -2,8 +2,6 @@ use clap::{command, Parser};
 use clap_verbosity_flag::Verbosity;
 use lib::{model::mk_graph, output::write_graph, parser::read_file};
 
-
-
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about=None)]
 struct RwCli {
@@ -23,5 +21,8 @@ fn main() -> Result<(), std::io::Error> {
 
     let q = mk_graph(&q);
 
-    write_graph(&q, cli.file.split(".").next().unwrap().to_string() + "_copy.trace")
+    write_graph(
+        &q,
+        cli.file.split(".").next().unwrap().to_string() + "_copy.trace",
+    )
 }
