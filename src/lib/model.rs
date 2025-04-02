@@ -28,7 +28,6 @@ pub enum Event {
     Read(Argument, Argument),
     Post(Argument, Argument),
     Get(Argument),
-    Done(Argument), // Final event in a message to make it easier to do stuff with EO
 }
 
 
@@ -45,11 +44,10 @@ impl Event {
 impl Display for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Event::Write(a, b) => write!(f, "Write({}, {})", a, b),
-            Event::Read(a, b) => write!(f, "Read({}, {})", a, b),
-            Event::Post(a, b) => write!(f, "Post({}, {})", a, b),
-            Event::Get(a) => write!(f, "Get({})", a),
-            Event::Done(a) => write!(f, "Done({})", a),
+            Event::Write(a, b) => write!(f, "Write({}, {})", mk_dot_safe(a), mk_dot_safe(b)),
+            Event::Read(a, b) => write!(f, "Read({}, {})", mk_dot_safe(a), mk_dot_safe(b)),
+            Event::Post(a, b) => write!(f, "Post({}, {})", mk_dot_safe(a), mk_dot_safe(b)),
+            Event::Get(a) => write!(f, "Get({})", mk_dot_safe(a)),
         }
     }
 }
@@ -68,13 +66,21 @@ pub struct Message {
     pub evs: Vec<Event>,
 }
 
+pub fn mk_dot_safe(arg: &str) -> String {
+    arg.replace(" ", "_")
+       .replace("(", "")
+       .replace(")", "")
+       .replace(".", "_")
+       .replace("-", "_")
+}
+
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct EPair(pub Argument, pub Argument, pub Event);
 
 impl Debug for EPair {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {}): {}", &self.0, &self.1, &self.2)
+        write!(f, "({}, {}): {}", mk_dot_safe(&self.0), mk_dot_safe(&self.1), &self.2)
     }
 }
 
@@ -92,7 +98,7 @@ macro_rules! epR {
     };
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum EdgeTp {
     RF,
     CO,
@@ -103,6 +109,8 @@ pub enum EdgeTp {
     DO,
     FR,
     EOD,
+    #[default]
+    ANY,
 }
 
 impl EdgeType for EdgeTp {
@@ -167,13 +175,6 @@ pub fn mk_graph(rr: &ReadResult) -> ExecutionGraph {
                 last = Some(n);
             });
             // Add a Done event from which to connect EO later.
-            let np = d.add_node(EPair(
-                hid.clone(),
-                mid.clone(),
-                Event::Done(mid.clone()),
-            ));
-            d.add_edge(last.unwrap(), np, EdgeTp::PO);
-            mdata.push(np);
             map.insert(id, mdata);
         });
 

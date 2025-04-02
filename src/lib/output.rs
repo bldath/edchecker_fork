@@ -21,21 +21,21 @@ where
     writeln!(f, "rankdir = TB;")?;
     for (handler, messages) in map {
 
-        writeln!(f, "subgraph cluster_{} {{", handler)?;
+        writeln!(f, "subgraph cluster_{} {{", mk_dot_safe(handler))?;
         writeln!(f, "rankdir = TB;")?;
         let mut h = vec![];
         for (m, evs) in messages {
-            writeln!(f, "subgraph cluster_{} {{", m)?;
+            writeln!(f, "subgraph cluster_{} {{", mk_dot_safe(m))?;
             writeln!(f, "rankdir = TB;")?;
             for &ev in evs {
                 writeln!(f, "{} [label=\"{:?}\"];", NodeIndexable::to_index(g, ev), g[ev])?;
                 h.push(ev);
             }
             writeln!(f, "color = \"blue\";")?;
-            writeln!(f, "label = \"Message {}\";", m)?;
+            writeln!(f, "label = \"Message {}\";", mk_dot_safe(m))?;
             writeln!(f, "}}")?;
         }
-        writeln!(f, "label = \"Handler {}\";", handler)?;
+        writeln!(f, "label = \"Handler {}\";", mk_dot_safe(handler))?;
 
         writeln!(f, "}}")?;
     }
@@ -56,6 +56,7 @@ where
                      EdgeTp::DO => "orange",
                      EdgeTp::FR => "purple",
                      EdgeTp::EOD => "cyan",
+                     EdgeTp::ANY => "black",
                  }
         )?;
     }

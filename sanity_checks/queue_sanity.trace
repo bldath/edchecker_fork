@@ -1,0 +1,2 @@
+@h1
+{get(m10) -> post(m21) -> write(u, 1) }

@@ -1,0 +1,67 @@
+digraph {
+rankdir = TB;
+subgraph cluster_h3 {
+rankdir = TB;
+subgraph cluster_mid3 {
+rankdir = TB;
+11 [label="(h3, mid3): Get(mid3)"];
+12 [label="(h3, mid3): Write(x, 4)"];
+13 [label="(h3, mid3): Done(mid3)"];
+color = "blue";
+label = "Message mid3";
+}
+label = "Handler h3";
+}
+subgraph cluster_h2 {
+rankdir = TB;
+subgraph cluster_mid2 {
+rankdir = TB;
+5 [label="(h2, mid2): Get(mid2)"];
+6 [label="(h2, mid2): Write(x, 2)"];
+7 [label="(h2, mid2): Done(mid2)"];
+color = "blue";
+label = "Message mid2";
+}
+subgraph cluster_mid4 {
+rankdir = TB;
+8 [label="(h2, mid4): Get(mid4)"];
+9 [label="(h2, mid4): Write(x, 3)"];
+10 [label="(h2, mid4): Done(mid4)"];
+color = "blue";
+label = "Message mid4";
+}
+label = "Handler h2";
+}
+subgraph cluster_h1 {
+rankdir = TB;
+subgraph cluster_init {
+rankdir = TB;
+0 [label="(h1, init): Get(init)"];
+1 [label="(h1, init): Post(h2, mid2)"];
+2 [label="(h1, init): Post(h3, mid3)"];
+3 [label="(h1, init): Post(h2, mid4)"];
+4 [label="(h1, init): Done(init)"];
+color = "blue";
+label = "Message init";
+}
+label = "Handler h1";
+}
+0 -> 1 [label="PO", color="green"];
+1 -> 2 [label="PO", color="green"];
+2 -> 3 [label="PO", color="green"];
+3 -> 4 [label="PO", color="green"];
+5 -> 6 [label="PO", color="green"];
+6 -> 7 [label="PO", color="green"];
+8 -> 9 [label="PO", color="green"];
+9 -> 10 [label="PO", color="green"];
+11 -> 12 [label="PO", color="green"];
+12 -> 13 [label="PO", color="green"];
+6 -> 9 [label="CO", color="blue"];
+6 -> 12 [label="CO", color="blue"];
+9 -> 12 [label="CO", color="blue"];
+1 -> 5 [label="PB", color="brown"];
+2 -> 11 [label="PB", color="brown"];
+3 -> 8 [label="PB", color="brown"];
+7 -> 8 [label="EO", color="magenta"];
+1 -> 3 [label="MO", color="brown"];
+}

@@ -1,0 +1,73 @@
+digraph {
+rankdir = TB;
+subgraph cluster_h3 {
+rankdir = TB;
+subgraph cluster_m30 {
+rankdir = TB;
+14 [label="(h3, m30): Get(m30)"];
+15 [label="(h3, m30): Read(a, 1)"];
+16 [label="(h3, m30): Done(m30)"];
+color = "blue";
+label = "Message m30";
+}
+label = "Handler h3";
+}
+subgraph cluster_h1 {
+rankdir = TB;
+subgraph cluster_m10 {
+rankdir = TB;
+0 [label="(h1, m10): Get(m10)"];
+1 [label="(h1, m10): Write(y, 1)"];
+2 [label="(h1, m10): Read(y, 2)"];
+3 [label="(h1, m10): Done(m10)"];
+color = "blue";
+label = "Message m10";
+}
+subgraph cluster_m12 {
+rankdir = TB;
+4 [label="(h1, m12): Get(m12)"];
+5 [label="(h1, m12): Write(y, 2)"];
+6 [label="(h1, m12): Done(m12)"];
+color = "blue";
+label = "Message m12";
+}
+label = "Handler h1";
+}
+subgraph cluster_h2 {
+rankdir = TB;
+subgraph cluster_m20 {
+rankdir = TB;
+7 [label="(h2, m20): Get(m20)"];
+8 [label="(h2, m20): Write(z, 1)"];
+9 [label="(h2, m20): Read(z, 2)"];
+10 [label="(h2, m20): Done(m20)"];
+color = "blue";
+label = "Message m20";
+}
+subgraph cluster_m21 {
+rankdir = TB;
+11 [label="(h2, m21): Get(m21)"];
+12 [label="(h2, m21): Write(z, 2)"];
+13 [label="(h2, m21): Done(m21)"];
+color = "blue";
+label = "Message m21";
+}
+label = "Handler h2";
+}
+0 -> 1 [label="PO", color="green"];
+1 -> 2 [label="PO", color="green"];
+2 -> 3 [label="PO", color="green"];
+4 -> 5 [label="PO", color="green"];
+5 -> 6 [label="PO", color="green"];
+7 -> 8 [label="PO", color="green"];
+8 -> 9 [label="PO", color="green"];
+9 -> 10 [label="PO", color="green"];
+11 -> 12 [label="PO", color="green"];
+12 -> 13 [label="PO", color="green"];
+14 -> 15 [label="PO", color="green"];
+15 -> 16 [label="PO", color="green"];
+5 -> 2 [label="RF", color="red"];
+12 -> 9 [label="RF", color="red"];
+6 -> 0 [label="EO", color="magenta"];
+13 -> 7 [label="EO", color="magenta"];
+}

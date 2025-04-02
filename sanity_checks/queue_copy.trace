@@ -1,0 +1,10 @@
+@h3
+{ Get(mid4) -> Read(x, 1) -> Done(mid4) }
+{ Get(mid3) -> Read(x, 2) -> Done(mid3) }
+@h1
+{ Get(init) -> Post(h2, mid1) -> Post(h2, mid2) -> Done(init) }
+@h2
+{ Get(mid2) -> Write(x, 1) -> Post(h3, mid3) -> Done(mid2) }
+{ Get(mid1) -> Write(x, 2) -> Post(h3, mid4) -> Done(mid1) }
+$(CO)
+Write(x, 2) -> Write(x, 1)
