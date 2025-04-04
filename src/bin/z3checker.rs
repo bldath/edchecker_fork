@@ -6,12 +6,12 @@ use itertools::Itertools;
 use lib::instance;
 
 use clap::Parser;
+use lib::instance::DistilledInstance;
 use lib::model::mk_graph;
 use lib::model::EdgeTp;
 use lib::model::ReadResult;
 use lib::output::*;
 use lib::parser::read_file;
-use lib::instance::DistilledInstance;
 
 use petgraph::adj::UnweightedList;
 use petgraph::algo::toposort;
@@ -27,88 +27,86 @@ use std::time::Instant;
 
 use io::*;
 
-fn print_result(res : z3::SatResult, instance: &DistilledInstance, solver: &Solver, q: &ReadResult) {
+fn print_result(res: z3::SatResult, instance: &DistilledInstance, solver: &Solver, q: &ReadResult) {
     match res {
         z3::SatResult::Unsat => println!("Result: false"),
         z3::SatResult::Unknown => println!("Result: unknown"),
         z3::SatResult::Sat => {
-                let model = solver.get_model().unwrap();
+            let model = solver.get_model().unwrap();
 
-                let (mut graph, maps) = mk_graph(&q);
+            let (mut graph, maps) = mk_graph(q);
 
-                let indices = &instance.indices;
+            let indices = &instance.indices;
 
-                for (i, j) in indices.iter().tuple_combinations() {
-                    for ((av, a), (bv, b)) in [(i, j), (j, i)] {
-                        let ag = maps[&a.0][&a.1][a.2];
-                        let bg = maps[&b.0][&b.1][b.2];
+            for (i, j) in indices.iter().tuple_combinations() {
+                for ((av, a), (bv, b)) in [(i, j), (j, i)] {
+                    let ag = maps[&a.0][&a.1][a.2];
+                    let bg = maps[&b.0][&b.1][b.2];
 
-                        if graph.contains_edge(ag, bg) {
-                            // Ignore existing edges
-                            continue;
-                        }
+                    if graph.contains_edge(ag, bg) {
+                        // Ignore existing edges
+                        continue;
+                    }
 
-                        let ab_eval = model
-                            .eval(&instance.order.apply(&[av, bv]).as_bool().unwrap(), true)
-                            .unwrap();
-                        let ab = ab_eval.as_bool().unwrap();
+                    let ab_eval = model
+                        .eval(&instance.order.apply(&[av, bv]).as_bool().unwrap(), true)
+                        .unwrap();
+                    let ab = ab_eval.as_bool().unwrap();
 
-                        if ab {
-                            graph.add_edge(ag, bg, EdgeTp::ANY);
-                        }
+                    if ab {
+                        graph.add_edge(ag, bg, EdgeTp::ANY);
                     }
                 }
+            }
 
-                let _ = graph.edge_count();
-                //println!("Cyclic: {:?}", is_cyclic_directed(&graph));
-                let toposort = toposort(&graph, None).unwrap();
-                let (res, revmap): (UnweightedList<NodeIndex>, Vec<NodeIndex>) =
-                    dag_to_toposorted_adjacency_list(&graph, &toposort);
+            let _ = graph.edge_count();
+            //println!("Cyclic: {:?}", is_cyclic_directed(&graph));
+            let toposort = toposort(&graph, None).unwrap();
+            let (res, revmap): (UnweightedList<NodeIndex>, Vec<NodeIndex>) =
+                dag_to_toposorted_adjacency_list(&graph, &toposort);
 
-                let (trans_red, _trans_closure) = dag_transitive_reduction_closure(&res);
+            let (trans_red, _trans_closure) = dag_transitive_reduction_closure(&res);
 
-                println!("Edges in TransRed: {}", trans_red.edge_count());
+            println!("Edges in TransRed: {}", trans_red.edge_count());
 
-                for ei in trans_red.edge_indices() {
-                    let (a, b) = trans_red.edge_endpoints(ei).unwrap();
+            for ei in trans_red.edge_indices() {
+                let (a, b) = trans_red.edge_endpoints(ei).unwrap();
 
-                    let ag = revmap[a.index()];
-                    let bg = revmap[b.index()];
+                let ag = revmap[a.index()];
+                let bg = revmap[b.index()];
 
-                    if !graph.contains_edge(ag, bg) {
-                        println!("MISSING EDGE: {:?} -> {:?}", graph[ag], graph[bg]);
-                    } else {
-                        println!("EXISTING EDGE: {:?} -> {:?}", graph[ag], graph[bg]);
-                    }
+                if !graph.contains_edge(ag, bg) {
+                    println!("MISSING EDGE: {:?} -> {:?}", graph[ag], graph[bg]);
+                } else {
+                    println!("EXISTING EDGE: {:?} -> {:?}", graph[ag], graph[bg]);
                 }
-                /*
-                graph.retain_edges(| g, idx | {
-                    let (from, to) = g.edge_endpoints(idx).unwrap();
-                    // From/To are indices in the graph
-                    let from_idx = revmap.iter().find_position(|x: &&NodeIndex| **x == from).map(|(x,y)| x).unwrap();
-                    let to_idx  = revmap.iter().find_position(|x| **x == to).map(|(x, y)| x).unwrap();
-                    // From/To are indices in the transitive reduction
-                    let a_idx = trans_red.from_index(from_idx);
-                    let b_idx = trans_red.from_index(to_idx);
+            }
+            /*
+            graph.retain_edges(| g, idx | {
+                let (from, to) = g.edge_endpoints(idx).unwrap();
+                // From/To are indices in the graph
+                let from_idx = revmap.iter().find_position(|x: &&NodeIndex| **x == from).map(|(x,y)| x).unwrap();
+                let to_idx  = revmap.iter().find_position(|x| **x == to).map(|(x, y)| x).unwrap();
+                // From/To are indices in the transitive reduction
+                let a_idx = trans_red.from_index(from_idx);
+                let b_idx = trans_red.from_index(to_idx);
 
-                    trans_red.contains_edge(a_idx, b_idx) //|| g.edge_weight(idx) != Some(&EdgeTp::ANY)
-                });
-                */
-                // Why does this call make the retain happen?
-                let nc = graph.node_count();
-                println!("Nodes in graph: {}", nc);
+                trans_red.contains_edge(a_idx, b_idx) //|| g.edge_weight(idx) != Some(&EdgeTp::ANY)
+            });
+            */
+            // Why does this call make the retain happen?
+            let nc = graph.node_count();
+            println!("Nodes in graph: {}", nc);
 
-                // for e in trans_red.edge_indices() {
-                //     let (src, dst) = trans_red.edge_endpoints(e).unwrap();
-                //     let (src, dst) = (revmap[src.index()], revmap[dst.index()]);
-                //     //gp.add_edge(src, dst, EdgeTp::EOD);
-                // }
-                write_dot(&(graph, maps.clone()), "Z3".into(), "ok".into()).unwrap();
+            // for e in trans_red.edge_indices() {
+            //     let (src, dst) = trans_red.edge_endpoints(e).unwrap();
+            //     let (src, dst) = (revmap[src.index()], revmap[dst.index()]);
+            //     //gp.add_edge(src, dst, EdgeTp::EOD);
+            // }
+            write_dot(&(graph, maps.clone()), "Z3".into(), "ok".into()).unwrap();
         }
     }
-
 }
-
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
