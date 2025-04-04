@@ -270,14 +270,14 @@ impl<'ctx> DistilledInstance<'ctx> {
             // For every handler
             for (m1, m2) in msgs.iter().tuple_combinations() {
                 // And every pair of messages in that handler
-                println!("{:?} {:?}", m1, m2);
+                //println!("{:?} {:?}", m1, m2);
                 let m1getidx: &Idx = &(hdl.clone(), m1.0.clone(), 0_usize);
                 let m1get = &consts[m1getidx];
                 let m1done = &consts[&(hdl.clone(), m1.0.clone(), *m1.1 - 1)];
                 let m2get = &consts[&(hdl.clone(), m2.0.clone(), 0)];
                 let m2done = &consts[&(hdl.clone(), m2.0.clone(), *m2.1 - 1)];
 
-                println!("{:?} → {:?} ∨ {:?} → {:?}", m1done, m2get, m2done, m1get);
+                //println!("{:?} → {:?} ∨ {:?} → {:?}", m1done, m2get, m2done, m1get);
 
                 let m12 = &hb.apply(&[m1done, m2get]).as_bool().unwrap();
                 let m21 = &hb.apply(&[m2done, m1get]).as_bool().unwrap();

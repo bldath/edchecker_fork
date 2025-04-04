@@ -11,12 +11,13 @@ use lib::model::EdgeTp;
 use lib::model::ReadResult;
 use lib::output::*;
 use lib::parser::read_file;
+use lib::instance::DistilledInstance;
+
 use petgraph::adj::UnweightedList;
 use petgraph::algo::toposort;
 use petgraph::algo::tred::dag_to_toposorted_adjacency_list;
 use petgraph::algo::tred::dag_transitive_reduction_closure;
 use petgraph::graph::NodeIndex;
-use std::fs;
 use std::io;
 use z3::Solver;
 
@@ -26,48 +27,11 @@ use std::time::Instant;
 
 use io::*;
 
-fn main() -> Result<()> {
-    let cli = Cli::parse();
-
-    env_logger::Builder::new()
-        .filter_level(cli.verbosity.log_level_filter())
-        .format(|buf, record| writeln!(buf, "{}", record.args()))
-        .init();
-
-    let start = Instant::now();
-    let q: ReadResult = read_file(cli.file.clone());
-
-    let parsed = Instant::now();
-
-    println!("Handlers: {:?}", q.0.len());
-    let num_mess: usize = q.0.iter().map(|x| x.1.len()).collect_vec().iter().sum();
-    println!("Messages: {:?}", num_mess);
-
-    let num_ev: usize =
-        q.0.iter()
-            .map(|x| x.1.iter().map(|y| y.1.len()).sum::<usize>())
-            .sum();
-
-    println!("Events: {:?}", num_ev);
-    println!("Parsing: {:?}µs", (parsed - start).as_micros());
-
-    let ctx = Context::new(&Config::default());
-
-    let instance = instance::construct_instance(&ctx, &q);
-
-    let solver = Solver::new(&ctx);
-    instance.assert(&solver);
-    instance.add_do(&solver, cli.adt);
-
-    let preprocessed = Instant::now();
-    println!("Preprocessing: {:?}µs", (preprocessed - parsed).as_micros());
-
-    match solver.check() {
+fn print_result(res : z3::SatResult, instance: &DistilledInstance, solver: &Solver, q: &ReadResult) {
+    match res {
         z3::SatResult::Unsat => println!("Result: false"),
         z3::SatResult::Unknown => println!("Result: unknown"),
         z3::SatResult::Sat => {
-            println!("Result: true");
-            if cli.draw {
                 let model = solver.get_model().unwrap();
 
                 let (mut graph, maps) = mk_graph(&q);
@@ -140,20 +104,64 @@ fn main() -> Result<()> {
                 //     //gp.add_edge(src, dst, EdgeTp::EOD);
                 // }
                 write_dot(&(graph, maps.clone()), "Z3".into(), "ok".into()).unwrap();
-            }
         }
     }
 
-    let done = Instant::now();
-    let f = fs::File::create("z3_model.smt")?;
+}
 
-    let mut writer = io::BufWriter::new(f);
-    write!(writer, "{:?}", solver)?;
+
+fn main() -> Result<()> {
+    let cli = Cli::parse();
+
+    env_logger::Builder::new()
+        .filter_level(cli.verbosity.log_level_filter())
+        .format(|buf, record| writeln!(buf, "{}", record.args()))
+        .init();
+
+    let start = Instant::now();
+    let q: ReadResult = read_file(cli.file.clone());
+
+    let parsed = Instant::now();
+
+    println!("Handlers: {:?}", q.0.len());
+    let num_mess: usize = q.0.iter().map(|x| x.1.len()).collect_vec().iter().sum();
+    println!("Messages: {:?}", num_mess);
+
+    let num_ev: usize =
+        q.0.iter()
+            .map(|x| x.1.iter().map(|y| y.1.len()).sum::<usize>())
+            .sum();
+
+    println!("Events: {:?}", num_ev);
+    println!("Parsing: {:?}µs", (parsed - start).as_micros());
+
+    let ctx = Context::new(&Config::default());
+
+    let instance = instance::construct_instance(&ctx, &q);
+
+    let solver = Solver::new(&ctx);
+    instance.assert(&solver);
+    instance.add_do(&solver, cli.adt);
+
+    let preprocessed = Instant::now();
+    println!("Preprocessing: {:?}µs", (preprocessed - parsed).as_micros());
+
+    let res = solver.check();
+    let done = Instant::now();
+
+    // Save the model to a smt file
+    // let f = fs::File::create("z3_model.smt")?;
+    // let mut writer = io::BufWriter::new(f);
+    // write!(writer, "{:?}", solver)?;
 
     println!("Check: {:?}µs", (done - preprocessed).as_micros());
     println!("Total: {:?}µs", (done - start).as_micros());
 
-    //println!("Result: {:?}", res.is_some());
+    println!("Result: {:?}", res == z3::SatResult::Sat);
+
+    if cli.draw {
+        print_result(res, &instance, &solver, &q);
+    }
 
     // if let Some(q) = res {
     //     if cli.draw {
