@@ -62,7 +62,7 @@ fn get_var(s: &str, var_ids: &mut HashMap<String, String>, var_ctr: &mut u32) ->
     match var_ids.get(s) {
         Some(v) => v.clone(),
         None => {
-            let id = format!("x_{}", var_ctr);
+            let id = format!("x{}", var_ctr);
             *var_ctr += 1;
             var_ids.insert(s.to_string(), id.clone());
             id
@@ -71,15 +71,16 @@ fn get_var(s: &str, var_ids: &mut HashMap<String, String>, var_ctr: &mut u32) ->
 }
 
 fn wt_val(s: &String, var_ctrs: &mut HashMap<String, u32>) -> u32 {
-    match var_ctrs.get(s) {
-        Some(v) => {
-            let id = v + 1;
-            var_ctrs.insert(s.to_string(), id);
+    //println!("Write on val: {}", s);
+    match var_ctrs.entry(s.to_string()) {
+        Entry::Occupied(mut entry) => {
+            let id = *entry.get() + 1;
+            entry.insert(id);
             id
         }
-        None => {
+        Entry::Vacant(entry) => {
             let id = 1;
-            var_ctrs.insert(s.to_string(), id);
+            entry.insert(id);
             id
         }
     }
@@ -138,8 +139,8 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                 let val = sre.name("val").unwrap().as_str();
 
                 let var_id = get_var(var, &mut var_ids, &mut var_ctr);
-                let val_id = wt_val(&val.to_string(), &mut var_ctrs);
-
+                let val_id = wt_val(&var_id.to_string(), &mut var_ctrs);
+                //println!("Var: {} -> {}, Val: {} -> {}", var, var_id, val, val_id);
                 let evt = Event::Write(var_id.clone(), val_id.to_string());
 
                 evs.entry(hdl.to_string())
@@ -151,8 +152,12 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                 co_var.entry(var_id).or_default().push(evt);
             } else if let Some(lre) = lre {
                 let var = lre.name("var").unwrap().as_str();
+
                 let var_id = get_var(var, &mut var_ids, &mut var_ctr);
+                //println!("Var: {}, Ctrs: {:?}", var_id, var_ctrs);
                 let val_id = rd_val(&var_id, &var_ctrs);
+               
+               if val_id == 0 { continue; }
 
                 evs.entry(hdl.to_string())
                     .or_default()
@@ -186,10 +191,10 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                 .iter()
                 .filter(|(mid, evs)| !evs.is_empty())
                 .map(|(x, y)| {
-                        let mut new_evs: Vec<Event> = y.clone();
-                        new_evs.insert(0, Event::Get(x.clone()));
-                        (x.clone(), new_evs)
-                    })
+                    let mut new_evs: Vec<Event> = y.clone();
+                    new_evs.insert(0, Event::Get(x.clone()));
+                    (x.clone(), new_evs)
+                })
                 .collect();
             if !new_msgs.is_empty() {
                 Some((hdl.clone(), new_msgs))
@@ -233,8 +238,9 @@ fn main() -> Result<(), std::io::Error> {
     let inputs =
         glob(format!("{}/*.log", cli.input_dir).as_str()).expect("Failed to read input directory");
     for entry in inputs {
-        println!("Processing entry: {:?}", entry);
         if let Ok(e) = entry {
+            println!("Experiment: {}", e.display());
+
             let path = e.as_path().to_str().unwrap();
             let file = read_file(path.to_string())?;
 
