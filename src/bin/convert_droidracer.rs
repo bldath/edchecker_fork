@@ -54,7 +54,6 @@ fn parse_str(s: String) -> Result<ExecutionGraph, std::io::Error> {
     let rw_regex: Regex = Regex::new(r"^rwId:(\d+) (\w+) tid:(\d+) obj:(\wx\w+).*$").unwrap();
     let post_regex = Regex::new(r"(\d+) POST src:(\d+) msg:(\d+)").unwrap();
     let call_regex = Regex::new(r"(\d+) CALL tid:(\d+)	 msg:(\d+)").unwrap();
-
     // let mut eg : ExecutionGraph = (EGraph::new(), HashMap::new());
 
     let mut eg = HashMap::new();
