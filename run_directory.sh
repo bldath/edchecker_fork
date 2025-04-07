@@ -12,9 +12,9 @@ for h in "${heuristics[@]}"; do
                  "dirname {expt} | xargs -I% mkdir -p $target/%; ./target/release/z3checker ${adt} ${h} {} > $target/{expt}_z3_${adt}_${h}.out" \
                  ::: EDC-traces/*/*.trace
 
-        parallell --rpl '{expr} s:(\.?/[-\w]+)*/([-\w]+/[-\w]+)\.\w+:\2:;' \
+        parallel --rpl '{expr} s:(\.?/[-\w]+)*/([-\w]+/[-\w]+)\.\w+:\2:;' \
                  --timeout 120 --bar \
-                 "dirname {expt} | xargs -I% mkdir -p $target/%; ./target/release/edchecker ${adt} ${h} {} > $target/{expt}_manual_${adt}_${h}.out" \
+                 "dirname {expt} | xargs -I% mkdir -p $target/%; ./target/release/edchecker ${adt} ${h} {} > $target/{expt}_graph_${adt}_${h}.out" \
                  ::: EDC-traces/*/*.trace
     done
 done
