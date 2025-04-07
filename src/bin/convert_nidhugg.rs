@@ -185,7 +185,11 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
             let new_msgs: HashMap<String, Vec<Event>> = msgs
                 .iter()
                 .filter(|(mid, evs)| !evs.is_empty())
-                .map(|(x, y)| (x.clone(), y.clone()))
+                .map(|(x, y)| {
+                        let mut new_evs: Vec<Event> = y.clone();
+                        new_evs.insert(0, Event::Get(x.clone()));
+                        (x.clone(), new_evs)
+                    })
                 .collect();
             if !new_msgs.is_empty() {
                 Some((hdl.clone(), new_msgs))
