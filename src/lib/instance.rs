@@ -414,7 +414,6 @@ pub fn construct_instance<'ctx>(
     solver.set_params(&params);
 
     //println!("Distilling instance");
-
     let distilled = instance.distill(ctx);
     distilled
 }

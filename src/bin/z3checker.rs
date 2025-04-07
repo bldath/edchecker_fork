@@ -131,12 +131,17 @@ fn main() -> Result<()> {
             .sum();
 
     println!("Events: {:?}", num_ev);
+
+    if num_ev == 0 {
+        println!("Empty trace");
+        return Ok(());
+    }
+
     println!("Parsing: {:?}µs", (parsed - start).as_micros());
 
     let ctx = Context::new(&Config::default());
 
     let instance = instance::construct_instance(&ctx, &q);
-
     let solver = Solver::new(&ctx);
     instance.assert(&solver);
     instance.add_do(&solver, cli.adt);
