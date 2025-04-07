@@ -55,7 +55,7 @@ fn add_event(
 
 pub fn split_input(s: String) -> Vec<String> {
     let split_string = "=== EventTraceBuilder reset ===";
-    s.split(split_string).map(|x| x.to_string()).collect_vec()
+    s.split(split_string).skip(1).map(|x| x.to_string()).collect_vec()
 }
 
 fn get_var(s: &str, var_ids: &mut HashMap<String, String>, var_ctr: &mut u32) -> String {
