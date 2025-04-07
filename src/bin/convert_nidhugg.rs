@@ -156,8 +156,10 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                 let var_id = get_var(var, &mut var_ids, &mut var_ctr);
                 //println!("Var: {}, Ctrs: {:?}", var_id, var_ctrs);
                 let val_id = rd_val(&var_id, &var_ctrs);
-               
-               if val_id == 0 { continue; }
+
+                if val_id == 0 {
+                    continue;
+                }
 
                 evs.entry(hdl.to_string())
                     .or_default()
@@ -237,30 +239,28 @@ fn main() -> Result<(), std::io::Error> {
 
     let inputs =
         glob(format!("{}/*.log", cli.input_dir).as_str()).expect("Failed to read input directory");
-    for entry in inputs {
-        if let Ok(e) = entry {
-            println!("Experiment: {}", e.display());
+    for e in inputs.flatten() {
+        println!("Experiment: {}", e.display());
 
-            let path = e.as_path().to_str().unwrap();
-            let file = read_file(path.to_string())?;
+        let path = e.as_path().to_str().unwrap();
+        let file = read_file(path.to_string())?;
 
-            let q = split_input(file)
-                .into_iter()
-                .map(|x| parse_str(x.to_string()));
-            for (i, graph) in q.enumerate() {
-                match graph {
-                    Ok((eg, co_edges)) => {
-                        let filename = path.split('/').last().unwrap();
-                        let out_dir = filename.split('.').next().unwrap();
+        let q = split_input(file)
+            .into_iter()
+            .map(|x| parse_str(x.to_string()));
+        for (i, graph) in q.enumerate() {
+            match graph {
+                Ok((eg, co_edges)) => {
+                    let filename = path.split('/').last().unwrap();
+                    let out_dir = filename.split('.').next().unwrap();
 
-                        let file = format!("{}/{}/trace{}.trace", cli.output_dir, out_dir, i);
-                        //println!("File: {}", file);
-                        let eg = mk_graph(&(eg, co_edges));
-                        write_graph(&eg, file)?;
-                    }
-                    Err(e) => {
-                        println!("Error parsing graph {}: {}", i, e);
-                    }
+                    let file = format!("{}/{}/trace{}.trace", cli.output_dir, out_dir, i);
+                    //println!("File: {}", file);
+                    let eg = mk_graph(&(eg, co_edges));
+                    write_graph(&eg, file)?;
+                }
+                Err(e) => {
+                    println!("Error parsing graph {}: {}", i, e);
                 }
             }
         }
