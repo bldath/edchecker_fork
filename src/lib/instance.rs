@@ -61,11 +61,14 @@ impl Instance {
         let rf = readers
             .iter()
             .flat_map(|(vv, reads)| {
-                let write = writers.get(vv).unwrap();
-                reads
-                    .iter()
-                    .map(|r| (EdgeTp::RF, write.clone(), r.clone()))
-                    .collect_vec()
+                if let Some(write) = writers.get(vv) {
+                    reads
+                        .iter()
+                        .map(|r| (EdgeTp::RF, write.clone(), r.clone()))
+                        .collect_vec()
+                } else {
+                    vec![]
+                }
             })
             .collect_vec();
 
