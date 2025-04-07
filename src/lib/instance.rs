@@ -350,7 +350,48 @@ impl<'ctx> DistilledInstance<'ctx> {
         }
     }
 
-    fn stack_do(&self, solver: &Solver) {}
+    fn stack_do(&self, solver: &Solver) {
+        let consts = &self.consts;
+        let ctx = self.z3_ctx;
+
+        let pb = self
+            .edges
+            .iter()
+            .filter(|(tp, _, _)| *tp == EdgeTp::PB)
+            .map(|(_, a, b)| (a, b));
+
+        let pairs = pb.permutations(2).map(|it| (it[0], it[1]));
+
+        for ((ai, bi), (ci, di)) in pairs {
+            if let (Some(a), Some(b), Some(c), Some(d)) = (
+                consts.get(ai),
+                consts.get(bi),
+                consts.get(ci),
+                consts.get(di),
+            ) {
+                if a == c {
+                    continue;
+                } // We do not want to add do edges for the same message
+                if di.0 != bi.0 {
+                    continue;
+                } // We need to be on the same handler
+
+                // a --[pb] -> b
+
+                // We know:
+                //      a (post) --[pb] -> b (get)
+                //      c (post) --[pb] -> d (get)
+                let post_mo_post = &self.order.apply(&[a, c]).as_bool().unwrap();
+                // b --[pb^-1]-> a --[mo]-> c
+                let hb_pb = &self.order.apply(&[b, d]).as_bool().unwrap();
+                // b --[hb/eo]-> d --[pb^-1]-> c
+
+                let do_ord = &self.order.apply(&[b, c]).as_bool().unwrap();
+
+                solver.assert(&Bool::and(ctx, &[post_mo_post, hb_pb]).implies(do_ord));
+            }
+        }
+    }
     fn reg_do(&self, solver: &Solver) {}
 }
 

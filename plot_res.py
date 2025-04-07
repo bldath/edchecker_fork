@@ -62,17 +62,22 @@ for i in glob.glob("./traces/**/*.out", recursive=True):
         r = f.readlines()
         
         q = list(map(lambda x: x.split(':')[1].rstrip(), r))
-        result = bool(q[-1])
-
         if len(q) < 8:
             continue
+        r = q[-1][1:] # Strip initial space
+        result = True
+        if r == 'false':
+            result = False
+        else:
+            assert(r == 'true')
+
+        
         # handlers, messages, events, parsing, pprocess, check, total, res
         [d.handlers, d.messages, d.events, parsing, pprocess, check, total] = list(map(lambda k: int(''.join(filter(str.isdigit, k))), q[0:-1:]))
         
         d.results.append(total)
         if result:
             d.num_ok += 1
-        
 
 if not os.path.exists("tables"):
     os.mkdir("tables")
