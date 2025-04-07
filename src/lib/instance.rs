@@ -87,11 +87,15 @@ impl Instance {
             .iter()
             .filter_map(|q| {
                 if let (EdgeTp::CO, Event::Write(var, val), Event::Write(var2, val2)) = q {
-                    Some((
-                        EdgeTp::CO,
-                        writers[&(var.clone(), val.clone())].clone(),
-                        writers[&(var2.clone(), val2.clone())].clone(),
-                    ))
+                    //println!("{},{} -> {},{}", var, val, var2, val2);
+                    if let (Some(w1), Some(w2)) = (
+                        writers.get(&(var.clone(), val.clone())),
+                        writers.get(&(var2.clone(), val2.clone())),
+                    ) {
+                        Some((EdgeTp::CO, w1.clone(), w2.clone()))
+                    } else {
+                        None
+                    }
                 } else {
                     //println!("Not a CO edge: {:?}", q);
                     None

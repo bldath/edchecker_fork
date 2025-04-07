@@ -55,7 +55,10 @@ fn add_event(
 
 pub fn split_input(s: String) -> Vec<String> {
     let split_string = "=== EventTraceBuilder reset ===";
-    s.split(split_string).skip(1).map(|x| x.to_string()).collect_vec()
+    s.split(split_string)
+        .skip(1)
+        .map(|x| x.to_string())
+        .collect_vec()
 }
 
 fn get_var(s: &str, var_ids: &mut HashMap<String, String>, var_ctr: &mut u32) -> String {
@@ -131,8 +134,8 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                     .entry(tid.to_string())
                     .or_default()
                     .push(Event::Post(
-                        pre.name("mid").unwrap().as_str().to_string(),
                         hdl.to_string(),
+                        pre.name("mid").unwrap().as_str().to_string(),
                     ));
             } else if let Some(sre) = sre {
                 let var = sre.name("var").unwrap().as_str();
@@ -158,6 +161,7 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                 let val_id = rd_val(&var_id, &var_ctrs);
 
                 if val_id == 0 {
+                    // This value was not written to
                     continue;
                 }
 
@@ -211,6 +215,7 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
         for (mid, evs) in msgs.iter_mut() {
             for ev in evs.iter_mut() {
                 if let Event::Post(ph, pm) = ev {
+                    //println!("Post of {}", pm);
                     if let Some(hdl) = hdl_of_msg.get(pm) {
                         *ph = hdl.clone();
                     }
