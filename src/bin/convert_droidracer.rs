@@ -258,6 +258,7 @@ fn parse_str(s: String) -> Result<ExecutionGraph, std::io::Error> {
 #[command(author, version, about, long_about=None)]
 struct ConvertCli {
     pub file: String,
+    pub output_dir: String,
     #[command(flatten)]
     pub verbosity: Verbosity,
 }
@@ -273,10 +274,10 @@ fn main() -> Result<(), std::io::Error> {
 
     let eg = parse_str(q)?;
 
-    write_graph(
-        &eg,
-        cli.file.split(".").next().unwrap().to_string() + ".trace",
-    );
+    let pathvec = cli.file.split('/').collect_vec();
+    let expt = pathvec[pathvec.len() - 2];
+    let file = format!("{}/{}/trace0.trace", cli.output_dir, expt);
+    write_graph(&eg, file);
 
     Ok(())
 }
