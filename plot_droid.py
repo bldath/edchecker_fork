@@ -109,8 +109,8 @@ for i in glob.glob("./droid_output/*.out", recursive=True):
         if result:
             d.num_ok += 1
 
-if not os.path.exists("tables"):
-    os.mkdir("tables")
+if not os.path.exists("tables_droid"):
+    os.mkdir("tables_droid")
 if not os.path.exists("table_tex"):
     os.mkdir("table_tex")
 if not os.path.exists("table_build"):
@@ -129,4 +129,4 @@ for tex in glob.glob("./table_tex/*.tex"):
     sp.call(["pdflatex", "-output-directory=table_build", tex])
 
 for pdf in glob.glob("./table_build/*.pdf"):
-    shutil.copy(pdf, f"tables/{pdf.split('/')[-1]}")
+    shutil.copy(pdf, f"tables_droid/{pdf.split('/')[-1]}")
