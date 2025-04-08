@@ -46,11 +46,12 @@ data = dd(lambda: dd(lambda: dd(lambda: Res())))
 
 #data[ADT][heur][expt] : Res
 
-for i in glob.glob("./traces/**/*.out", recursive=True):
+for i in glob.glob("./traces/*/*.out", recursive=True):
     with open(i) as f:
         path = i.split('/')
         exp = path[-2]
-        [trace, adt, heur] = path[-1].split('.')[0].split('_')
+        [trace, tool, adt, heur] = path[-1].split('.')[0].split('_')
+        print(trace, tool, adt, heur)
         
         d = data[adt][heur][exp]
 
@@ -60,7 +61,6 @@ for i in glob.glob("./traces/**/*.out", recursive=True):
         d.test = exp
         d.param = int(param)
         r = f.readlines()
-        
         q = list(map(lambda x: x.split(':')[1].rstrip(), r))
         if len(q) < 8:
             continue

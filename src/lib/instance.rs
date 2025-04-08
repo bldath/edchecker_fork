@@ -242,7 +242,7 @@ impl<'ctx> DistilledInstance<'ctx> {
                     solver.assert(&hb.apply(&[constvl, constvl2]).as_bool().unwrap());
                 }
                 _ => {
-                    println!("Failed to find consts for edge {:?} -> {:?}", m1, m2);
+                    //println!("Failed to find consts for edge {:?} -> {:?}", m1, m2);
                 }
             }
         }
