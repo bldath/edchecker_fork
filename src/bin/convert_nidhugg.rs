@@ -232,6 +232,8 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
 struct ConvertCli {
     pub input_dir: String,
     pub output_dir: String,
+    pub count: usize,
+    
     #[command(flatten)]
     pub verbosity: Verbosity,
 }
@@ -252,6 +254,7 @@ fn main() -> Result<(), std::io::Error> {
 
         let q = split_input(file)
             .into_iter()
+            .take(cli.count)
             .map(|x| parse_str(x.to_string()));
         for (i, graph) in q.enumerate() {
             match graph {
