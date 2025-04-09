@@ -263,7 +263,8 @@ fn main() -> Result<(), std::io::Error> {
                     let out_dir = filename.split('.').next().unwrap();
 
                     let file = format!("{}/{}/trace{}.trace", cli.output_dir, out_dir, i);
-                    //println!("File: {}", file);
+
+                    println!("File: {}", file);
                     let eg = mk_graph(&(eg, co_edges));
                     write_graph(&eg, file)?;
                 }
