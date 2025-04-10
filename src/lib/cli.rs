@@ -1,8 +1,9 @@
 use crate::heuristics::Heuristic;
 use clap::{Parser, ValueEnum};
 use clap_verbosity_flag::Verbosity;
+use serde::Serialize;
 
-#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq, Hash, Serialize)]
 pub enum ADT {
     Multiset,
     Queue,

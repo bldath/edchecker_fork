@@ -6,6 +6,7 @@ use petgraph::{
     algo::has_path_connecting,
     graph::{Frozen, NodeIndex},
 };
+use serde::Serialize;
 
 use crate::{
     algorithms::add_edges,
@@ -19,7 +20,7 @@ use crate::{
 };
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq, Hash, Serialize)]
 pub enum Heuristic {
     No,
     Simple,
