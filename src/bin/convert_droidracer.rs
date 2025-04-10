@@ -13,7 +13,7 @@ use clap_verbosity_flag::Verbosity;
 use itertools::Itertools;
 use lib::{
     model::{mk_graph, EGraph, EGraphData, EPair, EdgeTp, Event, ExecutionGraph, Idx, ReadResult},
-    output::write_graph,
+    output::{make_file, write_graph},
 };
 
 use petgraph::graph::NodeIndex;
@@ -294,7 +294,7 @@ fn main() -> Result<(), std::io::Error> {
             continue;
         };
         let out = format!("{}/{}/trace{}.json", cli.output_dir, expt, trace_num);
-        let mut file = File::create(out).expect("Unable to create file");
+        let mut file = make_file(out).expect("Unable to create file");
         file.write_all(serde_json::to_string(&eg).unwrap().as_bytes())
             .expect("Unable to write data");
     }

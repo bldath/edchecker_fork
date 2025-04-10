@@ -85,6 +85,15 @@ pub fn write_dot(graph: &ExecutionGraph, filename: String, suffix: String) -> Re
     }
 }
 
+pub fn make_file(filename: String) -> Result<File, Error> {
+    let parent_dir = filename
+        .split('/')
+        .take_while(|q| !q.contains('.'))
+        .join("/");
+    std::fs::create_dir_all(parent_dir)?;
+    File::create(filename)
+}
+
 pub fn write_graph(graph: &ExecutionGraph, filename: String) -> Result<(), Error> {
     let parent_dir = filename
         .split('/')

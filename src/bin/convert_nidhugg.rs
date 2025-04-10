@@ -12,7 +12,7 @@ use clap_verbosity_flag::Verbosity;
 use itertools::Itertools;
 use lib::{
     model::{mk_graph, EGraph, EGraphData, EPair, EdgeTp, Event, ExecutionGraph, Idx, ReadResult},
-    output::write_graph,
+    output::{make_file, write_graph},
 };
 
 use glob::glob;
@@ -265,7 +265,7 @@ fn main() -> Result<(), std::io::Error> {
                     let file = format!("{}/{}/trace{}.json", cli.output_dir, out_dir, i);
 
                     let str = serde_json::to_string(&rr).unwrap();
-                    let mut file = File::create(file).expect("Unable to create file");
+                    let mut file = make_file(file).expect("Unable to create file");
                     file.write_all(str.as_bytes())
                         .expect("Unable to write data");
                 }
