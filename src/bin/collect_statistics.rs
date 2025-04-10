@@ -132,7 +132,7 @@ impl TryFrom<&str> for ExptData {
         };
 
         let test = expt.to_string();
-        let param: Option<u64> = param.map(|x| x.parse().ok()).flatten();
+        let param: Option<u64> = param.and_then(|x| x.parse().ok());
         let alg = alg.to_string();
         let adt = ADT::from_str(adt, true)?;
         let heur = Heuristic::from_str(heur, true)?;
@@ -244,7 +244,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect_vec();
 
-    let mut serializer = csv::Writer::from_path(cli.output_file.to_string())?;
+    let mut serializer = csv::Writer::from_path(&cli.output_file)?;
 
     serializer.write_record([
         "Experiment",
