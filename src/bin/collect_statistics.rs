@@ -209,7 +209,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut results: HashMap<ExptData, ResultData> = HashMap::new();
 
-    let inputs = glob(format!("{}/*/*.out", cli.input_dir).as_str())
+    let inputs = glob(format!("{}/**/*.out", cli.input_dir).as_str())
         .expect("Failed to read input directory");
 
     for e in inputs.flatten() {
