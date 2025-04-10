@@ -112,7 +112,10 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
     let mut hdl_of_msg: HashMap<String, String> = HashMap::new();
 
     let mut evs: HashMap<String, HashMap<String, Vec<Event>>> = HashMap::new();
-    let mut co_var = HashMap::<String, Vec<Idx>>::new();
+    let mut co_var = HashMap::<String, Idx>::new();
+    let mut writers = HashMap::<(String, _), Idx>::new();
+
+    let mut edges = Vec::new();
 
     for line in s.lines() {
         if let Some(m) = ev_regex.captures(line) {
@@ -152,11 +155,21 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                     .or_default()
                     .entry(tid.to_string())
                     .or_default()
-                    .push(evt.clone());
+                    .push(evt);
 
-                let i = evs[hdl][tid].len() - 1;
+                let i = evs[hdl][tid].len(); // The -1 is counteracted by later adding a get
                 let idx = (hdl.to_string(), tid.to_string(), i);
-                co_var.entry(var_id).or_default().push(idx);
+                match co_var.entry(var_id.clone()) {
+                    Entry::Occupied(mut entry) => {
+                        let old = entry.get().clone();
+                        edges.push((EdgeTp::CO, old.clone(), idx.clone()));
+                        entry.insert(idx.clone());
+                    }
+                    Entry::Vacant(entry) => {
+                        entry.insert(idx.clone());
+                    }
+                }
+                writers.insert((var_id.clone(), val_id), idx);
             } else if let Some(lre) = lre {
                 let var = lre.name("var").unwrap().as_str();
 
@@ -173,20 +186,16 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                     .or_default()
                     .entry(tid.to_string())
                     .or_default()
-                    .push(Event::Read(var_id, val_id.to_string()));
+                    .push(Event::Read(var_id.clone(), val_id.to_string()));
+
+                let i = evs[hdl][tid].len(); // The -1 is counteracted by later adding a get
+                let idx = (hdl.to_string(), tid.to_string(), i);
+                if let Some(idx_of_writer) = writers.get(&(var_id.clone(), val_id)) {
+                    edges.push((EdgeTp::RF, idx_of_writer.clone(), idx.clone()));
+                }
             }
         }
     }
-
-    let edges = co_var
-        .iter()
-        .flat_map(|(k, v)| {
-            v.iter()
-                .tuple_windows()
-                .map(|(a, b)| (EdgeTp::CO, a.clone(), b.clone()))
-                .collect_vec()
-        })
-        .collect_vec();
 
     // Preprocess trace
     // Remove empty messages
@@ -198,6 +207,8 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                 .filter(|(mid, evs)| !evs.is_empty())
                 .map(|(x, y)| {
                     let mut new_evs: Vec<Event> = y.clone();
+                    // Add a get event to the start of the message
+                    // This is what makes the indices before not be len()-1.
                     new_evs.insert(0, Event::Get(x.clone()));
                     (x.clone(), new_evs)
                 })
