@@ -9,7 +9,7 @@ use clap::Parser;
 use clap_verbosity_flag::Verbosity;
 use itertools::Itertools;
 use lib::{
-    model::{mk_graph, EGraph, EGraphData, EPair, EdgeTp, Event, ExecutionGraph, ReadResult},
+    model::{mk_graph, EGraph, EGraphData, EPair, EdgeTp, Event, ExecutionGraph, Idx, ReadResult},
     output::write_graph,
 };
 
@@ -110,7 +110,7 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
     let mut hdl_of_msg: HashMap<String, String> = HashMap::new();
 
     let mut evs: HashMap<String, HashMap<String, Vec<Event>>> = HashMap::new();
-    let mut co_var = HashMap::<String, Vec<Event>>::new();
+    let mut co_var = HashMap::<String, Vec<Idx>>::new();
 
     for line in s.lines() {
         if let Some(m) = ev_regex.captures(line) {
@@ -152,7 +152,9 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                     .or_default()
                     .push(evt.clone());
 
-                co_var.entry(var_id).or_default().push(evt);
+                let i = evs[hdl][tid].len() - 1;
+                let idx = (hdl.to_string(), tid.to_string(), i);
+                co_var.entry(var_id).or_default().push(idx);
             } else if let Some(lre) = lre {
                 let var = lre.name("var").unwrap().as_str();
 
@@ -179,11 +181,7 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
         .flat_map(|(k, v)| {
             v.iter()
                 .tuple_windows()
-                .map(|(a, b)| {
-                    let a = a.clone();
-                    let b = b.clone();
-                    (EdgeTp::CO, a, b)
-                })
+                .map(|(a, b)| (EdgeTp::CO, a.clone(), b.clone()))
                 .collect_vec()
         })
         .collect_vec();

@@ -8,10 +8,15 @@ use std::{
     str::FromStr,
 };
 
+use model::Idx;
+
 use crate::model::{self, EGraph, EPair, EdgeTp, EdgeTp::*, Event, Handler, Message, ReadResult};
 
 pub fn read_file(filename: String) -> ReadResult {
-    if let Ok(q) = fs::read_to_string(filename) {
+    if let Ok(q) = fs::read_to_string(&filename) {
+        if filename.split('.').last().unwrap() == "json" {
+            return serde_json::from_str(&q).unwrap();
+        }
         parse_str(&q)
     } else {
         (HashMap::new(), vec![])
@@ -94,6 +99,26 @@ pub fn parse_edges(s: &str) -> Vec<(EdgeTp, Event, Event)> {
         .collect_vec()
 }
 
+fn idx_of(
+    event: Event,
+    readers: &HashMap<(String, String), Vec<Idx>>,
+    writers: &HashMap<(String, String), Idx>,
+) -> Idx {
+    match event {
+        Event::Write(var, val) => writers.get(&(var, val)).expect("Writer not found").clone(),
+        Event::Read(var, val) => {
+            let read_vec = readers
+                .get(&(var.clone(), val.clone()))
+                .expect("Readers not found");
+            if read_vec.len() > 1 {
+                panic!("Multiple Read({}, {})", &var, &val);
+            }
+            read_vec.first().expect("Reader list is empty").clone()
+        }
+        _ => panic!("Unsupported event type for idx_of"),
+    }
+}
+
 pub fn parse_str(s: &str) -> ReadResult {
     let mut handlers = HashMap::<String, HashMap<String, Vec<Event>>>::new();
     let mut active_handler: String = "NONE".into();
@@ -101,6 +126,10 @@ pub fn parse_str(s: &str) -> ReadResult {
     let handler_strs: Vec<String> = strs[0].split('@').skip(1).map(|x| x.into()).collect();
 
     let msg_regex = Regex::new(r"\{.*\}").unwrap();
+
+    let mut writers = HashMap::new();
+    let mut readers = HashMap::new();
+    let mut pb = Vec::new();
 
     let q = handler_strs
         .iter()
@@ -117,16 +146,54 @@ pub fn parse_str(s: &str) -> ReadResult {
                 .collect();
 
             // Now we have the events as text! Time to map them to Messages!
-            let msgs = m
+            let msgs: HashMap<String, Vec<Event>> = m
                 .iter()
                 .filter_map(|s| list_to_message(s))
                 .map(|msg| (msg.id, msg.evs))
                 .collect();
+
+            for (mid, evs) in msgs.iter() {
+                for (i, e) in evs.iter().enumerate() {
+                    let idx: Idx = (h.clone(), mid.clone(), i);
+                    match e {
+                        Event::Write(var, val) => {
+                            writers.insert((var.clone(), val.clone()), idx);
+                        }
+                        Event::Read(var, val) => {
+                            readers
+                                .entry((var.clone(), val.clone()))
+                                .or_insert(vec![])
+                                .push(idx);
+                        }
+                        Event::Post(hdl, msg) => {
+                            pb.push((PB, idx, (hdl.clone(), msg.clone(), 0_usize)));
+                        }
+                        Event::Get(_) => {}
+                    }
+                }
+            }
+
             (hid, msgs)
         })
         .collect();
 
-    let edges = strs.iter().skip(1).flat_map(|x| parse_edges(x));
+    let edges = strs
+        .iter()
+        .skip(1)
+        .flat_map(|x| parse_edges(x))
+        .collect_vec();
+    let indices = edges.iter().map(|(et, from, to)| {
+        let from = from.clone();
+        let to = to.clone();
+        let et = *et;
+
+        let from = idx_of(from, &readers, &writers);
+        let to = idx_of(to, &readers, &writers);
+
+        (et, from, to)
+    });
+
+    let edges = indices.chain(pb);
 
     // Get EO from the order handlers appear in the trace
     // let eit = edges.chain(q.iter().flat_map(| hdl | {

@@ -20,4 +20,5 @@ log = "0.4.20"
 glob = "0.3.2"
 z3 = { git="https://github.com/grahnen/z3.rs" }
 serde = { version="1.0", features = [ "derive" ] }
+serde_json = "1.0"
 csv = { version = "1.3" }

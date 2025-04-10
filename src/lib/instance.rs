@@ -8,11 +8,10 @@ use z3::{ast::Dynamic, *};
 
 use crate::{
     cli::ADT,
-    model::{EdgeTp, Event, ExecutionGraph, ReadResult},
+    model::{EdgeTp, Event, ExecutionGraph, Idx, ReadResult},
     msg_algorithms::transitive_closure,
 };
 
-type Idx = (String, String, usize);
 pub struct Instance {
     pub data: HashMap<String, HashMap<String, Vec<Event>>>,
     pub rf: Vec<(EdgeTp, Idx, Idx)>,
@@ -85,22 +84,8 @@ impl Instance {
 
         let co = edges
             .iter()
-            .filter_map(|q| {
-                if let (EdgeTp::CO, Event::Write(var, val), Event::Write(var2, val2)) = q {
-                    //println!("{},{} -> {},{}", var, val, var2, val2);
-                    if let (Some(w1), Some(w2)) = (
-                        writers.get(&(var.clone(), val.clone())),
-                        writers.get(&(var2.clone(), val2.clone())),
-                    ) {
-                        Some((EdgeTp::CO, w1.clone(), w2.clone()))
-                    } else {
-                        None
-                    }
-                } else {
-                    //println!("Not a CO edge: {:?}", q);
-                    None
-                }
-            })
+            .filter(|q| q.0 == EdgeTp::CO)
+            .cloned()
             .collect_vec();
 
         let fr = vec![];

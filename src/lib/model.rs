@@ -13,6 +13,7 @@ use petgraph::{
     visit::{NodeRef, Visitable},
     EdgeType,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::{msg_algorithms::transitive_closure, preprocess::get_pairs};
 
@@ -26,7 +27,7 @@ pub type Argument = String;
 //     Get,
 // }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Event {
     Write(Argument, Argument),
     Read(Argument, Argument),
@@ -63,7 +64,7 @@ impl Display for Event {
 //     }
 // }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Message {
     pub id: Argument,
     pub evs: Vec<Event>,
@@ -106,7 +107,9 @@ macro_rules! epR {
     };
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize,
+)]
 pub enum EdgeTp {
     RF,
     CO,
@@ -152,9 +155,11 @@ pub struct Handler {
 
 //pub struct ReadResult(pub Vec<Handler>, pub Vec<(EdgeTp, Event, Event)>);
 
+pub type Idx = (String, String, usize);
+
 pub type ReadResult = (
     HashMap<String, HashMap<String, Vec<Event>>>,
-    Vec<(EdgeTp, Event, Event)>,
+    Vec<(EdgeTp, Idx, Idx)>,
 );
 
 pub type HandlerData = HashMap<Argument, Vec<NodeIndex>>;
@@ -194,15 +199,9 @@ pub fn mk_graph(rr: &ReadResult) -> ExecutionGraph {
 
     edges.iter().for_each(|e| {
         let (et, from, to) = e;
-        if let Some(f) = d.node_indices().find(|x| &d[*x].2 == from) {
-            if let Some(t) = d.node_indices().find(|x| &d[*x].2 == to) {
-                d.add_edge(f, t, *et);
-            } else {
-                println!("Could not find event {:?} in graph:\n{:?}", to, d);
-            }
-        } else {
-            println!("Could not find event {:?} in graph:\n{:?}", from, d);
-        }
+        let from = hd[&from.0][&from.1][from.2];
+        let to = hd[&to.0][&to.1][to.2];
+        d.add_edge(from, to, *et);
     });
     (d, hd)
 }
@@ -234,5 +233,3 @@ pub fn get_mgraph(g: &EGraph) -> MGraph {
     transitive_closure(&mut m, ());
     m
 }
-
-pub fn get_handlers(g: &EGraph) {}

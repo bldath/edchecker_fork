@@ -10,7 +10,7 @@ use clap::Parser;
 use clap_verbosity_flag::Verbosity;
 use itertools::Itertools;
 use lib::{
-    model::{mk_graph, EGraph, EGraphData, EPair, EdgeTp, Event, ExecutionGraph},
+    model::{mk_graph, EGraph, EGraphData, EPair, EdgeTp, Event, ExecutionGraph, Idx},
     output::write_graph,
 };
 
@@ -64,6 +64,8 @@ fn parse_str(s: String) -> Result<ExecutionGraph, std::io::Error> {
     let mut last_write = HashMap::<String, String>::new();
     let mut co_edges = HashMap::<String, Vec<String>>::new();
     let mut variable_occurrence = HashMap::<String, HashSet<String>>::new();
+
+    let mut writers = HashMap::<(String, String), Idx>::new();
 
     for line in s.lines() {
         if let Some(m) = rw_regex.captures(line) {
@@ -241,13 +243,13 @@ fn parse_str(s: String) -> Result<ExecutionGraph, std::io::Error> {
 
     let co = co_edges
         .iter()
-        .filter(|(v, _)| thread_local.contains(*v))
+        .filter(|(v, _)| !thread_local.contains(*v))
         .flat_map(|(k, v)| {
             v.iter().tuple_windows().map(|(a, b)| {
                 (
                     EdgeTp::CO,
-                    Event::Write(k.to_string(), a.to_string()),
-                    Event::Write(k.to_string(), b.to_string()),
+                    writers.get(&(k.clone(), a.to_string())).unwrap().clone(),
+                    writers.get(&(k.clone(), b.to_string())).unwrap().clone(),
                 )
             })
         })
