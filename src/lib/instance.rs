@@ -4,6 +4,7 @@ use ast::{forall_const, Ast, Bool};
 use itertools::Itertools;
 
 use petgraph::algo::has_path_connecting;
+use serde_json::de::Read;
 use z3::{ast::Dynamic, *};
 
 use crate::{
@@ -12,94 +13,20 @@ use crate::{
     msg_algorithms::transitive_closure,
 };
 
-pub struct Instance {
+pub struct InstanceBuilder {
     pub data: HashMap<String, HashMap<String, Vec<Event>>>,
-    pub rf: Vec<(EdgeTp, Idx, Idx)>,
-    pub fr: Vec<(EdgeTp, Idx, Idx)>,
-    pub co: Vec<(EdgeTp, Idx, Idx)>,
-    pub pb: Vec<(EdgeTp, Idx, Idx)>,
+    pub edges: Vec<(EdgeTp, Idx, Idx)>,
 }
 
-impl Instance {
-    fn new(data: &ReadResult) -> Self {
-        let (data, edges) = data;
-        let iter = data
-            .iter()
-            .flat_map(|(hdl, msgs)| {
-                msgs.iter().flat_map(|(mid, evs)| {
-                    evs.iter()
-                        .enumerate()
-                        .map(|(idx, ev)| (hdl.clone(), mid.clone(), idx, ev.clone()))
-                })
-            })
-            .collect_vec();
-
-        let mut writers = HashMap::<(String, String), Idx>::new();
-        let mut readers = HashMap::<(String, String), Vec<Idx>>::new();
-        let mut posts = HashMap::<(String, String), Idx>::new();
-
-        for (hdl, mid, idx, ev) in iter {
-            let this = (hdl.clone(), mid.clone(), idx);
-            match ev {
-                Event::Write(var, val) => {
-                    writers.insert((var.clone(), val.clone()), this);
-                }
-                Event::Read(var, val) => {
-                    readers
-                        .entry((var.clone(), val.clone()))
-                        .or_default()
-                        .push(this);
-                }
-                Event::Post(hdl, msg) => {
-                    posts.insert((hdl.clone(), msg.clone()), this);
-                }
-                _ => {}
-            }
-        }
-
-        let rf = readers
-            .iter()
-            .flat_map(|(vv, reads)| {
-                if let Some(write) = writers.get(vv) {
-                    reads
-                        .iter()
-                        .map(|r| (EdgeTp::RF, write.clone(), r.clone()))
-                        .collect_vec()
-                } else {
-                    vec![]
-                }
-            })
-            .collect_vec();
-
-        let pb = posts
-            .iter()
-            .map(|((hdl, msg), post)| {
-                (
-                    EdgeTp::PB,
-                    post.clone(),
-                    (hdl.clone(), msg.clone(), 0_usize),
-                )
-            })
-            .collect_vec();
-
-        let co = edges
-            .iter()
-            .filter(|q| q.0 == EdgeTp::CO)
-            .cloned()
-            .collect_vec();
-
-        let fr = vec![];
-
+impl InstanceBuilder {
+    fn new(data: ReadResult) -> Self {
         Self {
-            data: data.clone(),
-            rf,
-            fr,
-            pb,
-            co,
+            data: data.events,
+            edges: data.edges,
         }
     }
 
-    fn distill(self, ctx: &Context) -> DistilledInstance<'_> {
+    fn build(self, ctx: &Context) -> Instance<'_> {
         let messages: HashMap<String, HashMap<String, usize>> = self
             .data
             .iter()
@@ -155,21 +82,13 @@ impl Instance {
             .zip(check_vec)
             .collect();
 
-        let edges = self
-            .rf
-            .iter()
-            .chain(self.co.iter())
-            .chain(self.pb.iter())
-            .chain(self.fr.iter())
-            .cloned()
-            .collect_vec();
         //println!("Edges: {:?}", edges);
 
         let order = FuncDecl::partial_order(ctx, &tp, 0);
         //let order = FuncDecl::new(ctx, "hb", &[&tp, &tp], &Sort::bool(ctx));
 
         //println!("Returning distilled instance");
-        DistilledInstance {
+        Instance {
             z3_ctx: ctx,
             solver: Solver::new(ctx),
             events: messages,
@@ -178,12 +97,12 @@ impl Instance {
             consts,
             indices,
             checks,
-            edges,
+            edges: self.edges,
         }
     }
 }
 
-pub struct DistilledInstance<'ctx> {
+pub struct Instance<'ctx> {
     z3_ctx: &'ctx Context,
     solver: Solver<'ctx>,
     events: HashMap<String, HashMap<String, usize>>,
@@ -195,7 +114,7 @@ pub struct DistilledInstance<'ctx> {
     edges: Vec<(EdgeTp, Idx, Idx)>,
 }
 
-impl<'ctx> DistilledInstance<'ctx> {
+impl<'ctx> Instance<'ctx> {
     pub fn assert(&self, solver: &Solver) {
         let ctx: &Context = self.z3_ctx;
         let (msg_type, consts, checks) = (&self.msg_type, &self.consts, &self.checks);
@@ -220,7 +139,7 @@ impl<'ctx> DistilledInstance<'ctx> {
         }
 
         // edges from base
-        //println!("CO/RF/PB edges");
+        //println!("CO/RF/FR/PB edges");
         for (_, m1, m2) in self.edges.iter() {
             match (consts.get(m1), consts.get(m2)) {
                 (Some(constvl), Some(constvl2)) => {
@@ -229,32 +148,6 @@ impl<'ctx> DistilledInstance<'ctx> {
                 _ => {
                     //println!("Failed to find consts for edge {:?} -> {:?}", m1, m2);
                 }
-            }
-        }
-
-        // FR edges
-        //println!("FR edges");
-        let co = self.edges.iter().filter(|(tp, _, _)| *tp == EdgeTp::CO);
-
-        let rf = self
-            .edges
-            .iter()
-            .filter(|(tp, _, _)| *tp == EdgeTp::RF)
-            .collect_vec();
-
-        for (_, a, b) in co {
-            for (_, c, d) in rf.iter() {
-                //println!("{:?}, {:?}, {:?}, {:?}", a, b, c, d);
-                let a = &consts[a];
-                let b = &consts[b];
-                let c = &consts[c];
-                let d = &consts[d];
-
-                if c != a {
-                    continue;
-                } // We have d --[rf^-1 . co]-> b
-
-                solver.assert(&hb.apply(&[d, b]).as_bool().unwrap());
             }
         }
 
@@ -389,11 +282,8 @@ impl<'ctx> DistilledInstance<'ctx> {
     fn reg_do(&self, solver: &Solver) {}
 }
 
-pub fn construct_instance<'ctx>(
-    ctx: &'ctx Context,
-    read_res: &ReadResult,
-) -> DistilledInstance<'ctx> {
-    let instance = Instance::new(read_res);
+pub fn construct_instance(ctx: &Context, read_res: ReadResult) -> Instance<'_> {
+    let instance = InstanceBuilder::new(read_res);
     let solver = Solver::new(ctx);
 
     let mut params = Params::new(ctx);
@@ -401,7 +291,7 @@ pub fn construct_instance<'ctx>(
     solver.set_params(&params);
 
     //println!("Distilling instance");
-    let distilled = instance.distill(ctx);
+    let distilled = instance.build(ctx);
     distilled
 }
 

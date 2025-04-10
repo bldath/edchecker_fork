@@ -22,7 +22,8 @@ fn main() {
     let cli = ConvertCli::parse();
 
     // Read the ExecutionGraph from the input file
-    let res: ReadResult = read_file(cli.input);
+    let mut res: ReadResult = read_file(cli.input);
+    res.build();
 
     let str = serde_json::to_string(&res).unwrap();
     let mut file = make_file(cli.output).expect("Unable to create file");

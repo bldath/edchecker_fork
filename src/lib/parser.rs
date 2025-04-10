@@ -17,9 +17,10 @@ pub fn read_file(filename: String) -> ReadResult {
         if filename.split('.').last().unwrap() == "json" {
             return serde_json::from_str(&q).unwrap();
         }
+        
         parse_str(&q)
     } else {
-        (HashMap::new(), vec![])
+        ReadResult::new(HashMap::new(), vec![])
     }
 }
 
@@ -118,7 +119,9 @@ fn idx_of(
         _ => panic!("Unsupported event type for idx_of"),
     }
 }
-
+/// Parse a string into a ReadResult.
+/// The string is expected to be of the .trace format.
+/// Does not construct RF/FR edges.
 pub fn parse_str(s: &str) -> ReadResult {
     let mut handlers = HashMap::<String, HashMap<String, Vec<Event>>>::new();
     let mut active_handler: String = "NONE".into();
@@ -195,11 +198,5 @@ pub fn parse_str(s: &str) -> ReadResult {
 
     let edges = indices.chain(pb);
 
-    // Get EO from the order handlers appear in the trace
-    // let eit = edges.chain(q.iter().flat_map(| hdl | {
-    //     hdl.messages.iter().tuples().map(| (Message { id, evs }, Message { id: i2, evs: e2 }) | {
-    //         (EO, evs[0].clone(), e2[0].clone())
-    //     })
-    // })).collect_vec();
-    (q, edges.collect_vec())
+    ReadResult::new(q, edges.collect_vec()).with_pb()
 }

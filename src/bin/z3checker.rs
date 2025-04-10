@@ -6,7 +6,7 @@ use itertools::Itertools;
 use lib::instance;
 
 use clap::Parser;
-use lib::instance::DistilledInstance;
+use lib::instance::Instance;
 use lib::model::mk_graph;
 use lib::model::EdgeTp;
 use lib::model::ReadResult;
@@ -27,7 +27,7 @@ use std::time::Instant;
 
 use io::*;
 
-fn print_result(res: z3::SatResult, instance: &DistilledInstance, solver: &Solver, q: &ReadResult) {
+fn print_result(res: z3::SatResult, instance: &Instance, solver: &Solver, q: &ReadResult) {
     match res {
         z3::SatResult::Unsat => println!("Result: false"),
         z3::SatResult::Unknown => println!("Result: unknown"),
@@ -117,18 +117,26 @@ fn main() -> Result<()> {
         .init();
 
     let start = Instant::now();
-    let q: ReadResult = read_file(cli.file.clone());
+    let mut q: ReadResult = read_file(cli.file.clone());
+    q.build();
 
     let parsed = Instant::now();
 
-    println!("Handlers: {:?}", q.0.len());
-    let num_mess: usize = q.0.iter().map(|x| x.1.len()).collect_vec().iter().sum();
+    println!("Handlers: {:?}", q.events.len());
+    let num_mess: usize = q
+        .events
+        .iter()
+        .map(|x| x.1.len())
+        .collect_vec()
+        .iter()
+        .sum();
     println!("Messages: {:?}", num_mess);
 
-    let num_ev: usize =
-        q.0.iter()
-            .map(|x| x.1.iter().map(|y| y.1.len()).sum::<usize>())
-            .sum();
+    let num_ev: usize = q
+        .events
+        .iter()
+        .map(|x| x.1.iter().map(|y| y.1.len()).sum::<usize>())
+        .sum();
 
     println!("Events: {:?}", num_ev);
 
@@ -141,7 +149,17 @@ fn main() -> Result<()> {
 
     let ctx = Context::new(&Config::default());
 
-    let instance = instance::construct_instance(&ctx, &q);
+    let q_render = if cli.draw { Some(q.clone()) } else { None };
+
+    if let Some(ref q) = q_render {
+        let (g, data) = mk_graph(&q);
+        if cli.draw {
+            let eg = (g.clone(), data.clone());
+            write_dot(&eg, cli.file.clone(), "input".into())?;
+        }
+    }
+
+    let instance = instance::construct_instance(&ctx, q);
     let solver = Solver::new(&ctx);
     instance.assert(&solver);
     instance.add_do(&solver, cli.adt);
@@ -162,7 +180,7 @@ fn main() -> Result<()> {
 
     println!("Result: {:?}", res == z3::SatResult::Sat);
 
-    if cli.draw {
+    if let Some(q) = q_render {
         print_result(res, &instance, &solver, &q);
     }
 

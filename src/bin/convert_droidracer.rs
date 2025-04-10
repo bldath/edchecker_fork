@@ -279,7 +279,7 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
         })
         .collect_vec();
 
-    Ok((eg, co))
+    Ok(ReadResult::new(eg, co))
 }
 
 #[derive(Parser, Debug)]
@@ -312,9 +312,10 @@ fn main() -> Result<(), std::io::Error> {
         *trace_num += 1;
 
         let contents = read_file(path.to_string())?;
-        let Ok(eg) = parse_str(contents) else {
+        let Ok(mut eg) = parse_str(contents) else {
             continue;
         };
+        eg.build();
         let out = format!("{}/{}/trace{}.json", cli.output_dir, expt, trace_num);
         let mut file = make_file(out).expect("Unable to create file");
         file.write_all(serde_json::to_string(&eg).unwrap().as_bytes())

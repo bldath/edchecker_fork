@@ -224,18 +224,20 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
     // Fix post events
     for (hdl, msgs) in new_evs.iter_mut() {
         for (mid, evs) in msgs.iter_mut() {
-            for ev in evs.iter_mut() {
+            for (i, ev) in evs.iter_mut().enumerate() {
                 if let Event::Post(ph, pm) = ev {
                     //println!("Post of {}", pm);
-                    if let Some(hdl) = hdl_of_msg.get(pm) {
-                        *ph = hdl.clone();
+                    if let Some(phdl) = hdl_of_msg.get(pm) {
+                        *ph = phdl.clone();
+                        let idx = (hdl.clone(), pm.clone(), i);
+                        edges.push((EdgeTp::PO, idx, (phdl.clone(), pm.clone(), 0)));
                     }
                 }
             }
         }
     }
 
-    Ok((new_evs, edges))
+    Ok(ReadResult::new(new_evs, edges).with_rf().with_pb())
 }
 
 #[derive(Parser, Debug)]
@@ -267,9 +269,10 @@ fn main() -> Result<(), std::io::Error> {
             .into_iter()
             .take(cli.count)
             .map(|x| parse_str(x.to_string()));
-        for (i, graph) in q.enumerate() {
+        for (i, mut graph) in q.enumerate() {
             match graph {
-                Ok(rr) => {
+                Ok(mut rr) => {
+                    rr.build();
                     let filename = path.split('/').last().unwrap();
                     let out_dir = filename.split('.').next().unwrap();
 

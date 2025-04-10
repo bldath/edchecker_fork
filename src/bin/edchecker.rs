@@ -94,7 +94,8 @@ fn main() -> Result<()> {
         .init();
 
     let start = Instant::now();
-    let q = read_file(cli.file.clone());
+    let mut q = read_file(cli.file.clone());
+    q.build();
     let (mut g, data) = mk_graph(&q);
     let parsed = Instant::now();
 
@@ -103,14 +104,21 @@ fn main() -> Result<()> {
         write_dot(&eg, cli.file.clone(), "input".into())?;
     }
 
-    println!("Handlers: {:?}", q.0.len());
-    let num_mess: usize = q.0.iter().map(|x| x.1.len()).collect_vec().iter().sum();
+    println!("Handlers: {:?}", q.events.len());
+    let num_mess: usize = q
+        .events
+        .iter()
+        .map(|x| x.1.len())
+        .collect_vec()
+        .iter()
+        .sum();
     println!("Messages: {:?}", num_mess);
 
-    let num_ev: usize =
-        q.0.iter()
-            .map(|x| x.1.iter().map(|y| y.1.len()).sum::<usize>())
-            .sum();
+    let num_ev: usize = q
+        .events
+        .iter()
+        .map(|x| x.1.iter().map(|y| y.1.len()).sum::<usize>())
+        .sum();
 
     println!("Events: {:?}", num_ev);
     println!("Parsing: {:?}µs", (parsed - start).as_micros());

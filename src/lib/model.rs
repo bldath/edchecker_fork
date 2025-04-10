@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::{Debug, Display},
     path,
 };
@@ -157,10 +157,133 @@ pub struct Handler {
 
 pub type Idx = (String, String, usize);
 
-pub type ReadResult = (
-    HashMap<String, HashMap<String, Vec<Event>>>,
-    Vec<(EdgeTp, Idx, Idx)>,
-);
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ReadResult {
+    pub events: HashMap<String, HashMap<String, Vec<Event>>>,
+    pub edges: Vec<(EdgeTp, Idx, Idx)>,
+    has_rf: bool,
+    has_fr: bool,
+    has_pb: bool,
+}
+
+impl ReadResult {
+    pub fn new(
+        events: HashMap<String, HashMap<String, Vec<Event>>>,
+        edges: Vec<(EdgeTp, Idx, Idx)>,
+    ) -> Self {
+        Self {
+            events,
+            edges,
+            has_rf: false,
+            has_fr: false,
+            has_pb: false,
+        }
+    }
+
+    pub fn with_rf(mut self) -> Self {
+        self.has_rf = true;
+        self
+    }
+    pub fn with_fr(mut self) -> Self {
+        self.has_fr = true;
+        self
+    }
+    pub fn with_pb(mut self) -> Self {
+        self.has_pb = true;
+        self
+    }
+
+    pub fn build(&mut self) {
+        if !self.has_rf {
+            self.compute_rf();
+        }
+
+        if !self.has_fr {
+            self.compute_fr();
+        }
+
+        if !self.has_pb {
+            self.compute_pb();
+        }
+
+        // PO is implicit in the hashmap.
+        // EO/MO are to be guessed
+    }
+
+    pub fn compute_rf(&mut self) {
+        let mut writers: HashMap<(String, String), Idx> = HashMap::new();
+        let mut readers: Vec<(String, String, Idx)> = vec![];
+        assert!(!self.has_rf, "RF already computed");
+        self.has_rf = true;
+
+        for (hdl, msgs) in self.events.iter() {
+            for (mid, evs) in msgs.iter() {
+                for (i, ev) in evs.iter().enumerate() {
+                    match ev {
+                        Event::Write(v, val) => {
+                            writers.insert((v.clone(), val.clone()), (hdl.clone(), mid.clone(), i));
+                        }
+                        Event::Read(v, val) => {
+                            readers.push((v.clone(), val.clone(), (hdl.clone(), mid.clone(), i)));
+                        }
+                        _ => (),
+                    }
+                }
+            }
+        }
+        for (v, val, ri) in readers.into_iter() {
+            if let Some(wi) = writers.get(&(v.clone(), val.clone())) {
+                self.edges.push((EdgeTp::RF, ri, wi.clone()));
+            }
+        }
+    }
+
+    pub fn compute_fr(&mut self) {
+        let co: Vec<_> = self
+            .edges
+            .iter()
+            .filter(|(et, _, _)| *et == EdgeTp::CO)
+            .cloned()
+            .collect();
+        let rf: Vec<(_, Idx, Idx)> = self
+            .edges
+            .iter()
+            .filter(|(et, _, _)| *et == EdgeTp::RF)
+            .cloned()
+            .collect();
+
+        assert!(!self.has_fr, "FR already computed");
+        self.has_fr = true;
+
+        for (_, a, b) in co.iter() {
+            for (_, c, d) in rf.iter() {
+                if c != a {
+                    continue;
+                }
+                //We have d --[rf^-1 . co]-> b
+                self.edges.push((EdgeTp::FR, d.clone(), b.clone()));
+            }
+        }
+    }
+
+    pub fn compute_pb(&mut self) {
+        assert!(!self.has_pb, "PB already computed");
+        self.has_pb = true;
+
+        for (hdl, msgs) in &self.events {
+            for (mid, evs) in msgs {
+                for (i, ev) in evs.iter().enumerate() {
+                    if let Event::Post(phdl, pmsg) = ev {
+                        //let idx = (hdl.clone(), mid.clone(), i);
+                        let idx = (hdl.clone(), mid.clone(), i);
+                        self.edges
+                            .push((EdgeTp::PB, idx.clone(), (phdl.clone(), pmsg.clone(), 0)));
+                    }
+                }
+            }
+        }
+    }
+}
 
 pub type HandlerData = HashMap<Argument, Vec<NodeIndex>>;
 pub type EGraphData = HashMap<Argument, HandlerData>;
@@ -168,11 +291,10 @@ pub type EGraphData = HashMap<Argument, HandlerData>;
 pub type ExecutionGraph = (EGraph, EGraphData);
 
 pub fn mk_graph(rr: &ReadResult) -> ExecutionGraph {
-    let (hdl, edges) = rr;
     let mut d = EGraph::new();
     let mut hd = HashMap::new();
 
-    hdl.iter().for_each(|(hid, msgs)| {
+    rr.events.iter().for_each(|(hid, msgs)| {
         //let mut hid = Argument::new();
         let mut map = HashMap::<Argument, Vec<NodeIndex>>::new();
         let mut last: Option<NodeIndex<u32>> = None;
@@ -190,14 +312,12 @@ pub fn mk_graph(rr: &ReadResult) -> ExecutionGraph {
                 }
                 last = Some(n);
             });
-            // Add a Done event from which to connect EO later.
-            map.insert(id, mdata);
         });
 
         hd.insert(hid.clone(), map);
     });
 
-    edges.iter().for_each(|e| {
+    rr.edges.iter().for_each(|e| {
         let (et, from, to) = e;
         let from = hd[&from.0][&from.1][from.2];
         let to = hd[&to.0][&to.1][to.2];
