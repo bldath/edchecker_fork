@@ -67,8 +67,6 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
     let mut co_edges = HashMap::<String, Vec<String>>::new();
     let mut variable_occurrence = HashMap::<String, HashSet<String>>::new();
 
-    let mut writers = HashMap::<(String, String), Idx>::new();
-
     for line in s.lines() {
         if let Some(m) = rw_regex.captures(line) {
             let (q, [id, op, tid, obj]) = m.extract();
@@ -122,7 +120,7 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
     // Variables that only occur in one message
     let thread_local: HashSet<String> = variable_occurrence
         .iter()
-        .filter_map(|(k, v)| if v.len() < 2 { None } else { Some(k.clone()) })
+        .filter_map(|(k, v)| if v.len() < 2 { Some(k.clone()) } else { None })
         .collect();
 
     println!("Thread local: {:?}", thread_local);
@@ -133,7 +131,7 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
         for (mid, evs) in msgs.iter() {
             for (idx, ev) in evs.iter().enumerate() {
                 if let Some(v) = ev.variable() {
-                    if !thread_local.contains(&v) {
+                    if thread_local.contains(&v) {
                         to_rmv
                             .entry((hdl.clone(), mid.clone()))
                             .or_default()
@@ -243,6 +241,24 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
         }
     }
 
+    let writers = eg
+        .iter()
+        .flat_map(|(hdl, msgs)| {
+            msgs.iter().flat_map(|(mid, evs)| {
+                evs.iter()
+                    .enumerate()
+                    .filter_map(|(i, ev)| {
+                        if let Event::Write(var, val) = ev {
+                            Some(((var.clone(), val.clone()), (hdl.clone(), mid.clone(), i)))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect_vec()
+            })
+        })
+        .collect::<HashMap<_, _>>();
+
     let co = co_edges
         .iter()
         .filter(|(v, _)| !thread_local.contains(*v))
@@ -250,8 +266,14 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
             v.iter().tuple_windows().map(|(a, b)| {
                 (
                     EdgeTp::CO,
-                    writers.get(&(k.clone(), a.to_string())).unwrap().clone(),
-                    writers.get(&(k.clone(), b.to_string())).unwrap().clone(),
+                    writers
+                        .get(&(k.clone(), a.to_string()))
+                        .unwrap_or_else(|| panic!("Cannot find {},{}", k.clone(), a.clone()))
+                        .clone(),
+                    writers
+                        .get(&(k.clone(), b.to_string()))
+                        .unwrap_or_else(|| panic!("Cannot find {},{}", k.clone(), b.clone()))
+                        .clone(),
                 )
             })
         })
