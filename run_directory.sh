@@ -4,9 +4,6 @@ function usage() {
     echo "Usage: $0 <trace dir> <output dir>"
 }
 
-echo "Compiling release build"
-cargo build --release || exit
-
 target=${1:?$(usage)}
 output=${2:?$(usage)}
 timeout=${3:-60}
