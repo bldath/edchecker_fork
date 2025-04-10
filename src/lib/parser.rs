@@ -17,7 +17,7 @@ pub fn read_file(filename: String) -> ReadResult {
         if filename.split('.').last().unwrap() == "json" {
             return serde_json::from_str(&q).unwrap();
         }
-        
+
         parse_str(&q)
     } else {
         ReadResult::new(HashMap::new(), vec![])

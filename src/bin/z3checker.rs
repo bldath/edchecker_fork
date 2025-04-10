@@ -152,7 +152,7 @@ fn main() -> Result<()> {
     let q_render = if cli.draw { Some(q.clone()) } else { None };
 
     if let Some(ref q) = q_render {
-        let (g, data) = mk_graph(&q);
+        let (g, data) = mk_graph(q);
         if cli.draw {
             let eg = (g.clone(), data.clone());
             write_dot(&eg, cli.file.clone(), "input".into())?;
