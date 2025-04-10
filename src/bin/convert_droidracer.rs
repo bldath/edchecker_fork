@@ -2,6 +2,8 @@
 use std::{
     collections::{btree_map::OccupiedEntry, hash_map::Entry, HashMap, HashSet},
     default,
+    fs::File,
+    io::Write,
 };
 
 use glob::glob;
@@ -10,7 +12,7 @@ use clap::Parser;
 use clap_verbosity_flag::Verbosity;
 use itertools::Itertools;
 use lib::{
-    model::{mk_graph, EGraph, EGraphData, EPair, EdgeTp, Event, ExecutionGraph, Idx},
+    model::{mk_graph, EGraph, EGraphData, EPair, EdgeTp, Event, ExecutionGraph, Idx, ReadResult},
     output::write_graph,
 };
 
@@ -52,7 +54,7 @@ fn add_event(
     // }
 }
 
-fn parse_str(s: String) -> Result<ExecutionGraph, std::io::Error> {
+fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
     let rw_regex: Regex = Regex::new(r"^rwId:(\d+) (\w+) tid:(\d+) obj:(\wx\w+).*$").unwrap();
     let post_regex = Regex::new(r"(\d+) POST src:(\d+) msg:(\d+)").unwrap();
     let call_regex = Regex::new(r"(\d+) CALL tid:(\d+)	 msg:(\d+)").unwrap();
@@ -255,7 +257,7 @@ fn parse_str(s: String) -> Result<ExecutionGraph, std::io::Error> {
         })
         .collect_vec();
 
-    Ok(mk_graph(&(eg, co)))
+    Ok((eg, co))
 }
 
 #[derive(Parser, Debug)]
@@ -291,8 +293,10 @@ fn main() -> Result<(), std::io::Error> {
         let Ok(eg) = parse_str(contents) else {
             continue;
         };
-        let out = format!("{}/{}/trace{}.trace", cli.output_dir, expt, trace_num);
-        write_graph(&eg, out);
+        let out = format!("{}/{}/trace{}.json", cli.output_dir, expt, trace_num);
+        let mut file = File::create(out).expect("Unable to create file");
+        file.write_all(serde_json::to_string(&eg).unwrap().as_bytes())
+            .expect("Unable to write data");
     }
 
     // let pathvec = cli.file.split('/').collect_vec();

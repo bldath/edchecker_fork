@@ -235,6 +235,7 @@ impl<'ctx> DistilledInstance<'ctx> {
         // FR edges
         //println!("FR edges");
         let co = self.edges.iter().filter(|(tp, _, _)| *tp == EdgeTp::CO);
+
         let rf = self
             .edges
             .iter()
@@ -243,6 +244,7 @@ impl<'ctx> DistilledInstance<'ctx> {
 
         for (_, a, b) in co {
             for (_, c, d) in rf.iter() {
+                //println!("{:?}, {:?}, {:?}, {:?}", a, b, c, d);
                 let a = &consts[a];
                 let b = &consts[b];
                 let c = &consts[c];

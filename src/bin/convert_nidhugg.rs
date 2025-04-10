@@ -2,7 +2,9 @@
 use std::{
     collections::{btree_map::OccupiedEntry, hash_map::Entry, HashMap, HashSet},
     default,
+    fs::File,
     hash::Hash,
+    io::Write,
 };
 
 use clap::Parser;
@@ -256,15 +258,16 @@ fn main() -> Result<(), std::io::Error> {
             .map(|x| parse_str(x.to_string()));
         for (i, graph) in q.enumerate() {
             match graph {
-                Ok((eg, co_edges)) => {
+                Ok(rr) => {
                     let filename = path.split('/').last().unwrap();
                     let out_dir = filename.split('.').next().unwrap();
 
-                    let file = format!("{}/{}/trace{}.trace", cli.output_dir, out_dir, i);
+                    let file = format!("{}/{}/trace{}.json", cli.output_dir, out_dir, i);
 
-                    println!("File: {}", file);
-                    let eg = mk_graph(&(eg, co_edges));
-                    write_graph(&eg, file)?;
+                    let str = serde_json::to_string(&rr).unwrap();
+                    let mut file = File::create(file).expect("Unable to create file");
+                    file.write_all(str.as_bytes())
+                        .expect("Unable to write data");
                 }
                 Err(e) => {
                     println!("Error parsing graph {}: {}", i, e);

@@ -154,7 +154,7 @@ pub fn parse_str(s: &str) -> ReadResult {
 
             for (mid, evs) in msgs.iter() {
                 for (i, e) in evs.iter().enumerate() {
-                    let idx: Idx = (h.clone(), mid.clone(), i);
+                    let idx: Idx = (hid.clone(), mid.clone(), i);
                     match e {
                         Event::Write(var, val) => {
                             writers.insert((var.clone(), val.clone()), idx);
