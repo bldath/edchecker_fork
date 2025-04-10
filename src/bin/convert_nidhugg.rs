@@ -233,7 +233,7 @@ struct ConvertCli {
     pub input_dir: String,
     pub output_dir: String,
     pub count: usize,
-    
+
     #[command(flatten)]
     pub verbosity: Verbosity,
 }

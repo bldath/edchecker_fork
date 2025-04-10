@@ -4,6 +4,8 @@ use std::{
     default,
 };
 
+use glob::glob;
+
 use clap::Parser;
 use clap_verbosity_flag::Verbosity;
 use itertools::Itertools;
@@ -257,8 +259,9 @@ fn parse_str(s: String) -> Result<ExecutionGraph, std::io::Error> {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about=None)]
 struct ConvertCli {
-    pub file: String,
+    pub input_dir: String,
     pub output_dir: String,
+
     #[command(flatten)]
     pub verbosity: Verbosity,
 }
@@ -270,14 +273,30 @@ fn main() -> Result<(), std::io::Error> {
         .filter_level(cli.verbosity.log_level_filter())
         .init();
 
-    let q = read_file(cli.file.clone())?;
+    let mut ctrs = HashMap::<String, u8>::new();
+    let inputs =
+        glob(format!("{}/**/abc_log*", cli.input_dir).as_str()).expect("Failed to read input");
 
-    let eg = parse_str(q)?;
+    for e in inputs.flatten() {
+        let path = e.as_path().to_str().unwrap();
 
-    let pathvec = cli.file.split('/').collect_vec();
-    let expt = pathvec[pathvec.len() - 2];
-    let file = format!("{}/{}/trace0.trace", cli.output_dir, expt);
-    write_graph(&eg, file);
+        let strs = path.split('/').collect_vec();
+        let expt = strs[strs.len() - 2];
+        let trace_num = ctrs.entry(expt.to_string()).or_default();
+        *trace_num += 1;
+
+        let contents = read_file(path.to_string())?;
+        let Ok(eg) = parse_str(contents) else {
+            continue;
+        };
+        let out = format!("{}/{}/trace{}.trace", cli.output_dir, expt, trace_num);
+        write_graph(&eg, out);
+    }
+
+    // let pathvec = cli.file.split('/').collect_vec();
+    // let expt = pathvec[pathvec.len() - 2];
+    // let file = format!("{}/{}/trace0.trace", cli.output_dir, expt);
+    // write_graph(&eg, file);
 
     Ok(())
 }

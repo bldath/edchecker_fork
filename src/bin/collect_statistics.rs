@@ -110,13 +110,21 @@ impl TryFrom<&str> for ExptData {
         let (my_idx, _) = slashes[slashes.len() - 2]; // Split at second to last slash
 
         let (_, core) = value.split_at(my_idx + 1);
-        println!("Core: {}", core);
-        let &[expt, param, _trace, alg, adt, heur] = core
+        let &[a, b] = core.split('/').collect_vec().as_slice() else {
+            return Err("Filename has wrong format".to_string());
+        };
+
+        let (expt, param) = if let &[expt, param] = a.split('_').collect_vec().as_slice() {
+            (expt, Some(param))
+        } else {
+            (a, None)
+        };
+
+        let &[_trace, alg, adt, heur] = b
             .split('.')
             .next()
             .unwrap()
-            .split('/')
-            .flat_map(|x| x.split('_'))
+            .split('_')
             .collect_vec()
             .as_slice()
         else {
@@ -124,7 +132,7 @@ impl TryFrom<&str> for ExptData {
         };
 
         let test = expt.to_string();
-        let param: Option<u64> = param.parse().ok();
+        let param: Option<u64> = param.map(|x| x.parse().ok()).flatten();
         let alg = alg.to_string();
         let adt = ADT::from_str(adt, true)?;
         let heur = Heuristic::from_str(heur, true)?;
@@ -144,6 +152,7 @@ struct ResultData {
     events: u64,
     messages: u64,
     handlers: u64,
+    num_traces: u64,
     num_ok: u64,
     num_timeout: u64,
     times: Vec<u64>,
@@ -155,6 +164,7 @@ impl ResultData {
             Some(er) => self.add_result(er),
             None => self.add_fail(),
         }
+        self.num_traces += 1;
     }
 
     fn add_result(&mut self, er: &ExecutionResult) {
@@ -185,6 +195,8 @@ impl ResultData {
 #[command(author, version, about, long_about=None)]
 struct ConvertCli {
     pub input_dir: String,
+    pub output_file: String,
+
     #[command(flatten)]
     pub verbosity: Verbosity,
 }
@@ -224,6 +236,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 expt.alg.clone(),
                 expt.adt,
                 expt.heur,
+                data.num_traces,
                 data.num_ok,
                 data.num_timeout,
                 s,
@@ -231,7 +244,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect_vec();
 
-    let mut serializer = csv::Writer::from_path("serialized.csv")?;
+    let mut serializer = csv::Writer::from_path(cli.output_file.to_string())?;
 
     serializer.write_record([
         "Experiment",
@@ -242,6 +255,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "Algorithm",
         "ADT",
         "Heuristic",
+        "#Traces",
         "#OK",
         "#T/O",
         "Avg. Time",
