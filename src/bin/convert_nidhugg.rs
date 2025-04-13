@@ -229,8 +229,8 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                     //println!("Post of {}", pm);
                     if let Some(phdl) = hdl_of_msg.get(pm) {
                         *ph = phdl.clone();
-                        let idx = (hdl.clone(), pm.clone(), i);
-                        edges.push((EdgeTp::PO, idx, (phdl.clone(), pm.clone(), 0)));
+                        let idx = (hdl.clone(), mid.clone(), i);
+                        edges.push((EdgeTp::PB, idx, (phdl.clone(), pm.clone(), 0)));
                     }
                 }
             }
