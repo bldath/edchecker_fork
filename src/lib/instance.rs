@@ -133,7 +133,7 @@ impl<'ctx> Instance<'ctx> {
                     let constvl = &consts[&last];
                     let constvl2 = &consts[&this];
                     solver.assert(&hb.apply(&[constvl, constvl2]).as_bool().unwrap());
-                    solver.assert(&hb.apply(&[constvl2, constvl]).as_bool().unwrap().not());
+                    //solver.assert(&hb.apply(&[constvl2, constvl]).as_bool().unwrap().not());
                 }
             }
         }
@@ -146,7 +146,7 @@ impl<'ctx> Instance<'ctx> {
                     solver.assert(&hb.apply(&[constvl, constvl2]).as_bool().unwrap());
                 }
                 _ => {
-                    //println!("Failed to find consts for edge {:?} -> {:?}", m1, m2);
+                    panic!("Failed to find consts for edge {:?} -> {:?}", m1, m2);
                 }
             }
         }
@@ -161,7 +161,7 @@ impl<'ctx> Instance<'ctx> {
                 let m1getidx: &Idx = &(hdl.clone(), m1.0.clone(), 0_usize);
                 let m1get = &consts[m1getidx];
                 let m1done = &consts[&(hdl.clone(), m1.0.clone(), *m1.1 - 1)];
-                let m2get = &consts[&(hdl.clone(), m2.0.clone(), 0)];
+                let m2get = &consts[&(hdl.clone(), m2.0.clone(), 0_usize)];
                 let m2done = &consts[&(hdl.clone(), m2.0.clone(), *m2.1 - 1)];
 
                 //println!("{:?} → {:?} ∨ {:?} → {:?}", m1done, m2get, m2done, m1get);

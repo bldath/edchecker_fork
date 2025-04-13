@@ -233,7 +233,7 @@ impl ReadResult {
         }
         for (v, val, ri) in readers.into_iter() {
             if let Some(wi) = writers.get(&(v.clone(), val.clone())) {
-                self.edges.push((EdgeTp::RF, ri, wi.clone()));
+                self.edges.push((EdgeTp::RF, wi.clone(), ri));
             }
         }
     }
@@ -292,26 +292,24 @@ pub type ExecutionGraph = (EGraph, EGraphData);
 
 pub fn mk_graph(rr: &ReadResult) -> ExecutionGraph {
     let mut d = EGraph::new();
-    let mut hd = HashMap::new();
+    let mut hd: HashMap<String, HashMap<String, Vec<NodeIndex>>> = HashMap::new();
 
     rr.events.iter().for_each(|(hid, msgs)| {
         //let mut hid = Argument::new();
         let mut map = HashMap::<Argument, Vec<NodeIndex>>::new();
-        let mut last: Option<NodeIndex<u32>> = None;
         msgs.iter().for_each(|(mid, evs)| {
             let mut mdata = Vec::<NodeIndex>::new();
-            let mut id = Argument::new();
             let mut last: Option<NodeIndex<u32>> = None;
             evs.iter().for_each(|ev| {
                 let n = d.add_node(EPair(hid.clone(), mid.clone(), ev.clone()));
-                //hid = hid.clone();
-                id = mid.clone();
                 mdata.push(n);
                 if let Some(l) = last {
                     d.add_edge(l, n, EdgeTp::PO);
                 }
                 last = Some(n);
             });
+
+            map.insert(mid.clone(), mdata);
         });
 
         hd.insert(hid.clone(), map);

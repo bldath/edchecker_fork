@@ -101,12 +101,15 @@ pub fn parse_edges(s: &str) -> Vec<(EdgeTp, Event, Event)> {
 }
 
 fn idx_of(
-    event: Event,
+    event: &Event,
     readers: &HashMap<(String, String), Vec<Idx>>,
     writers: &HashMap<(String, String), Idx>,
 ) -> Idx {
     match event {
-        Event::Write(var, val) => writers.get(&(var, val)).expect("Writer not found").clone(),
+        Event::Write(var, val) => writers
+            .get(&(var.clone(), val.clone()))
+            .expect("Writer not found")
+            .clone(),
         Event::Read(var, val) => {
             let read_vec = readers
                 .get(&(var.clone(), val.clone()))
@@ -186,12 +189,12 @@ pub fn parse_str(s: &str) -> ReadResult {
         .flat_map(|x| parse_edges(x))
         .collect_vec();
     let indices = edges.iter().map(|(et, from, to)| {
-        let from = from.clone();
-        let to = to.clone();
+        let from_ev = from.clone();
+        let to_ev = to.clone();
         let et = *et;
 
-        let from = idx_of(from, &readers, &writers);
-        let to = idx_of(to, &readers, &writers);
+        let from = idx_of(&from_ev, &readers, &writers);
+        let to = idx_of(&to_ev, &readers, &writers);
 
         (et, from, to)
     });
