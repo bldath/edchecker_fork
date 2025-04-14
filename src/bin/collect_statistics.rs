@@ -66,23 +66,32 @@ impl ExecutionResult {
             .join("")
             .parse()?;
 
+        if res.len() < 7 {
+            return Ok(ExecutionResult {
+                events,
+                messages,
+                handlers,
+                time: None,
+                valid: None,
+            });
+        }
+
         let (time, valid) = if let [total, valid] = &res.as_slice()[6..] {
-        let time = total
-            .chars()
-            .filter(|x| x.is_ascii_digit())
-            .join("")
-            .parse()?;
-        let valid = valid
-            .split(":")
-            .nth(1)
-            .unwrap()
-            .chars()
-            .skip(1)
-            .join("")
-            .parse()?;
+            let time = total
+                .chars()
+                .filter(|x| x.is_ascii_digit())
+                .join("")
+                .parse()?;
+            let valid = valid
+                .split(":")
+                .nth(1)
+                .unwrap()
+                .chars()
+                .skip(1)
+                .join("")
+                .parse()?;
 
-        (Some(time), Some(valid))
-
+            (Some(time), Some(valid))
         } else {
             (None, None)
         };

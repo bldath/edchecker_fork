@@ -162,12 +162,12 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
     while changed {
         changed = false;
 
-
         let posts_without_target = eg
             .iter()
             .flat_map(|(hdl, msgs)| {
                 msgs.iter().filter_map(|(mid, evs)| {
-                    let post_idx = evs.iter()
+                    let post_idx = evs
+                        .iter()
                         .enumerate()
                         .filter_map(|(i, ev)| {
                             if let Event::Post(ph, pm) = ev {
@@ -178,13 +178,14 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                             None
                         })
                         .collect_vec();
-                    if post_idx.len() > 0 {
+                    if !post_idx.is_empty() {
                         Some((hdl.clone(), mid.clone(), post_idx))
                     } else {
                         None
                     }
                 })
-            }).collect_vec();
+            })
+            .collect_vec();
 
         for (hdl, mid, indices) in posts_without_target.iter() {
             // indices is in ascending order, we go in reverse
