@@ -11,8 +11,8 @@ struct ExecutionResult {
     events: u64,
     messages: u64,
     handlers: u64,
-    time: u64,
-    valid: bool,
+    time: Option<u64>,
+    valid: Option<bool>,
 }
 
 impl ExecutionResult {
@@ -43,13 +43,10 @@ impl ExecutionResult {
                 lctr += 1
             }
         }
-
-        let [handlers, messages, events, _parsing, _preprocessing, _check, total, valid] =
-            &res.as_slice()
-        else {
+        let [handlers, messages, events] = &res.as_slice()[0..3] else {
             return Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
-                "File does not contain everything",
+                "File does not contain Expt data",
             )));
         };
 
@@ -68,6 +65,8 @@ impl ExecutionResult {
             .filter(|x| x.is_ascii_digit())
             .join("")
             .parse()?;
+
+        let (time, valid) = if let [total, valid] = &res.as_slice()[6..] {
         let time = total
             .chars()
             .filter(|x| x.is_ascii_digit())
@@ -81,6 +80,12 @@ impl ExecutionResult {
             .skip(1)
             .join("")
             .parse()?;
+
+        (Some(time), Some(valid))
+
+        } else {
+            (None, None)
+        };
 
         Ok(ExecutionResult {
             events,
@@ -178,15 +183,18 @@ impl ResultData {
             self.handlers = er.handlers
         }
 
-        // assert!(self.events == er.events);
-        // assert!(self.messages == er.messages);
-        // assert!(self.handlers == er.handlers);
-
-        self.num_ok += if er.valid { 1 } else { 0 };
-        self.times.push(er.time);
+        if let (Some(vld), Some(time)) = (er.valid, er.time) {
+            if vld {
+                self.num_ok += 1;
+            }
+            self.times.push(time);
+        } else {
+            self.num_timeout += 1;
+        }
     }
 
     fn add_fail(&mut self) {
+        println!("Failed to parse file, assume it timed out while parsing..");
         self.num_timeout += 1;
     }
 }

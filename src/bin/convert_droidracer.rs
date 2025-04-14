@@ -157,58 +157,47 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
         }
     }
 
-    // Backlink from message id to posting event
-    let mut posts: HashMap<String, (String, String, usize)> = HashMap::new();
-    // Handler of a given message. (?)
-    let mut msg_hdl: HashMap<String, String> = HashMap::new();
-
-    for (hdl, msgs) in eg.iter() {
-        for (mid, evs) in msgs {
-            msg_hdl.insert(mid.clone(), hdl.clone());
-            for (idx, ev) in evs.iter().enumerate() {
-                if let Event::Post(_, pm) = ev {
-                    posts.insert(pm.clone(), (hdl.clone(), mid.clone(), idx));
-                }
-            }
-        }
-    }
-
-    // The events we want to remove (for now, just posts..)
-    let mut rm = Vec::<(String, (String, String, usize))>::new();
-
-    for (pm, (hdl, mid, idx)) in posts.iter() {
-        // e is the message that contains the post
-        let e = &mut eg
-            .entry(hdl.clone())
-            .or_default()
-            .entry(mid.clone())
-            .or_default();
-        if let Entry::Occupied(q) = msg_hdl.entry(pm.clone()) {
-            e[*idx] = Event::Post(q.get().to_string(), pm.clone());
-        } else {
-            rm.push((pm.clone(), (hdl.clone(), mid.clone(), *idx)));
-        }
-    }
-
-    for (pm, (hdl, mid, idx)) in rm {
-        // The post at (hdl, mid, idx) must be removed. But idx can change.
-        let msg = eg.entry(hdl).or_default().entry(mid).or_default();
-
-        if let Some((idx, ev)) = msg.iter().find_position(|ev| {
-            if let Event::Post(ph, pm2) = ev {
-                pm == *pm2
-            } else {
-                false
-            }
-        }) {
-            msg.remove(idx);
-        }
-    }
-
     let mut changed = true;
 
     while changed {
         changed = false;
+
+
+        let posts_without_target = eg
+            .iter()
+            .flat_map(|(hdl, msgs)| {
+                msgs.iter().filter_map(|(mid, evs)| {
+                    let post_idx = evs.iter()
+                        .enumerate()
+                        .filter_map(|(i, ev)| {
+                            if let Event::Post(ph, pm) = ev {
+                                if !eg.contains_key(ph) || !eg.get(ph).unwrap().contains_key(pm) {
+                                    return Some(i);
+                                }
+                            }
+                            None
+                        })
+                        .collect_vec();
+                    if post_idx.len() > 0 {
+                        Some((hdl.clone(), mid.clone(), post_idx))
+                    } else {
+                        None
+                    }
+                })
+            }).collect_vec();
+
+        for (hdl, mid, indices) in posts_without_target.iter() {
+            // indices is in ascending order, we go in reverse
+            for i in indices.iter().rev() {
+                eg.entry(hdl.clone())
+                    .or_default()
+                    .entry(mid.clone())
+                    .or_default()
+                    .remove(*i);
+            }
+            changed = true;
+        }
+
         let mut rm: Vec<(String, String)> = Vec::new();
         for (hdl, msgs) in eg.iter() {
             for (mid, evs) in msgs {
@@ -221,23 +210,6 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
 
         for (hdl, mid) in rm.iter() {
             eg.entry(hdl.clone()).or_default().remove(mid);
-
-            let post = posts.get(mid);
-
-            if let Some((ph, pm, _)) = post {
-                // The index can be changed since we stored it
-                let msg = eg
-                    .entry(ph.clone())
-                    .or_default()
-                    .entry(pm.clone())
-                    .or_default();
-                if let Some((idx, evt)) = msg
-                    .iter()
-                    .find_position(|x| **x == Event::Post(ph.clone(), pm.clone()))
-                {
-                    msg.remove(idx);
-                }
-            }
         }
     }
 
