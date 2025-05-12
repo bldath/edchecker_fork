@@ -23,10 +23,14 @@ jobs:
           TERM: xterm-256color
         run: |
           cargo fmt --all -- --check
-
+      - name: Run cargo clippy
+        env:
+          TERM: xterm-256color
+        run: |
+          cargo clippy --locked --all-features -- -D warnings
   main:
     needs: fmt
-    name: ${{ matrix.target_name }} (check, clippy)
+    name: ${{ matrix.target_name }} (check)
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -64,9 +68,6 @@ jobs:
 
       - name: Run cargo/cross check
         run: ${{ matrix.use_cross == true && 'cross' || 'cargo' }} check --locked --target ${{ matrix.target }}
-
-      - name: Run cargo/cross clippy
-        run: ${{ matrix.use_cross == true && 'cross' || 'cargo' }} clippy --locked --target ${{ matrix.target }} --all-features -- -D warnings
 
       - name: Run cargo test
         # ONLY run test with cargo
