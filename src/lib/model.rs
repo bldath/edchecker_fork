@@ -33,7 +33,7 @@ pub enum Event {
     Read(Argument, Argument),
     Post(Argument, Argument),
     Get(Argument),
-    NOOP
+    NOOP,
 }
 
 impl Event {

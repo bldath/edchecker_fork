@@ -1,60 +1,85 @@
 use std::collections::HashMap;
 use std::io::Write;
 
+use clap::{command, Parser};
 use itertools::Itertools;
 use lib::model::EdgeTp;
+use lib::model::Event;
+use lib::model::ReadResult;
 use lib::output::make_file;
 use rand::prelude::*;
-use clap::{command, Parser};
-use lib::model::ReadResult;
-use lib::model::Event;
-
 
 fn random_pb<R: Rng>(rr: &mut ReadResult, rng: &mut R) {
-    let ReadResult {
-        events,
-        edges,
-        ..
-    } = rr;
+    let ReadResult { events, edges, .. } = rr;
 
-    let msgs = events.iter().flat_map(| (k, v) | v.iter().map(|(m, _)| (k.clone(), m.clone()))).collect_vec();
+    let msgs = events
+        .iter()
+        .flat_map(|(k, v)| v.iter().map(|(m, _)| (k.clone(), m.clone())))
+        .collect_vec();
 
     let mut posted = vec![msgs[0].clone()];
 
     for (hdl, msg) in msgs.iter().skip(1) {
-        let poster : (String, String) = posted.choose(rng).cloned().unwrap();
+        let poster: (String, String) = posted.choose(rng).cloned().unwrap();
         let e1 = events[&poster.0][&poster.1]
             .iter()
             .cloned()
             .enumerate()
             .skip(1)
-            .filter(|(_, e)| *e == Event::NOOP).collect_vec();
+            .filter(|(_, e)| *e == Event::NOOP)
+            .collect_vec();
 
         let e1 = e1.choose(rng).unwrap();
 
-        let evs = events.entry(poster.0.clone()).or_default().entry(poster.1.clone()).or_default();
+        let evs = events
+            .entry(poster.0.clone())
+            .or_default()
+            .entry(poster.1.clone())
+            .or_default();
         evs[e1.0] = Event::Post(hdl.clone(), msg.clone());
 
-        edges.push((EdgeTp::PB, (poster.0.clone(), poster.1.clone(), e1.0), (hdl.clone(), msg.clone(), 0)));
+        edges.push((
+            EdgeTp::PB,
+            (poster.0.clone(), poster.1.clone(), e1.0),
+            (hdl.clone(), msg.clone(), 0),
+        ));
         posted.push((hdl.clone(), msg.clone()))
     }
 }
 
-
-fn generate_trace(num_handlers: usize, num_messages: usize, num_events: usize, remote_edges: usize) -> ReadResult {
+fn generate_trace(
+    num_handlers: usize,
+    num_messages: usize,
+    num_events: usize,
+    remote_edges: usize,
+) -> ReadResult {
     let mut events: HashMap<String, HashMap<String, Vec<Event>>> = HashMap::new();
     let mut edges = Vec::new();
 
-    assert!(num_handlers > 0, "Number of handlers must be greater than 0");
-    assert!(num_messages >= num_handlers, "At least one message per handler");
-    assert!(num_events >= num_messages + 2 * remote_edges, "At least one event per message (Get), and two for every remote edge");
+    assert!(
+        num_handlers > 0,
+        "Number of handlers must be greater than 0"
+    );
+    assert!(
+        num_messages >= num_handlers,
+        "At least one message per handler"
+    );
+    assert!(
+        num_events >= num_messages + 2 * remote_edges,
+        "At least one event per message (Get), and two for every remote edge"
+    );
 
     for i in 0..num_handlers {
         let handler_id = format!("h_{}", i);
         let mut handler_msgs = HashMap::new();
-        
+
         // Evenly distribute messages among handlers
-        let n_msgs = num_messages / num_handlers + if i < num_messages % num_handlers { 1 } else { 0 };
+        let n_msgs = num_messages / num_handlers
+            + if i < num_messages % num_handlers {
+                1
+            } else {
+                0
+            };
         println!("Handler {}: {} messages", handler_id, n_msgs);
         for j in 0..n_msgs {
             let message_id = format!("h_{}_m_{}", i, j);
@@ -75,11 +100,12 @@ fn generate_trace(num_handlers: usize, num_messages: usize, num_events: usize, r
     let mut rng = rand::rng();
     // Add remote edges
     for i in 0..remote_edges {
-
         // Randomly select two messages from different handlers
         let mut hdls = events.keys().cloned().collect::<Vec<_>>();
         hdls.shuffle(&mut rng);
-        let [h1, h2, ..] = hdls.as_slice() else { panic!("Not enough handlers") };
+        let [h1, h2, ..] = hdls.as_slice() else {
+            panic!("Not enough handlers")
+        };
         let h1 = h1.clone();
         let h2 = h2.clone();
 
@@ -91,7 +117,8 @@ fn generate_trace(num_handlers: usize, num_messages: usize, num_events: usize, r
             .iter()
             .cloned()
             .enumerate()
-            .filter(|(_, e)| *e == Event::NOOP).collect_vec();
+            .filter(|(_, e)| *e == Event::NOOP)
+            .collect_vec();
 
         let e1 = e1.choose(&mut rng).unwrap();
 
@@ -100,23 +127,36 @@ fn generate_trace(num_handlers: usize, num_messages: usize, num_events: usize, r
             .cloned()
             .enumerate()
             .skip(1)
-            .filter(|(_, e)| *e == Event::NOOP).collect_vec();
+            .filter(|(_, e)| *e == Event::NOOP)
+            .collect_vec();
 
         let e2 = e2.choose(&mut rng).unwrap();
         let var = format!("x_{}", i);
         // Create the remote edge
         // For now just make it RF
-        let m1evs = events.entry(h1.clone()).or_default().entry(m1.clone()).or_default();
+        let m1evs = events
+            .entry(h1.clone())
+            .or_default()
+            .entry(m1.clone())
+            .or_default();
         m1evs[e1.0] = Event::Write(var.clone(), "0".into());
 
-        let m2evs = events.entry(h2.clone()).or_default().entry(m2.clone()).or_default();
+        let m2evs = events
+            .entry(h2.clone())
+            .or_default()
+            .entry(m2.clone())
+            .or_default();
         m2evs[e2.0] = Event::Read(var, "0".into());
 
-        edges.push((EdgeTp::RF, (h1.clone(), m1.clone(), e1.0), (h2.clone(), m2.clone(), e2.0)));  
+        edges.push((
+            EdgeTp::RF,
+            (h1.clone(), m1.clone(), e1.0),
+            (h2.clone(), m2.clone(), e2.0),
+        ));
     }
 
     //println!("Generated edges:\n{:?}", edges);
-    
+
     let mut rr = ReadResult {
         events,
         edges,
@@ -128,7 +168,6 @@ fn generate_trace(num_handlers: usize, num_messages: usize, num_events: usize, r
 
     rr
 }
-
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -145,7 +184,12 @@ pub fn main() {
     let cli = ScalableCLI::parse();
 
     // Generate a trace with the specified number of handlers, messages, and events
-    let res: ReadResult = generate_trace(cli.num_handlers, cli.num_messages, cli.num_events, cli.remote_edges);
+    let res: ReadResult = generate_trace(
+        cli.num_handlers,
+        cli.num_messages,
+        cli.num_events,
+        cli.remote_edges,
+    );
 
     let str = serde_json::to_string(&res).unwrap();
     let mut file = make_file(cli.output).expect("Unable to create file");
