@@ -33,6 +33,7 @@ pub enum Event {
     Read(Argument, Argument),
     Post(Argument, Argument),
     Get(Argument),
+    NOOP
 }
 
 impl Event {
@@ -52,6 +53,7 @@ impl Display for Event {
             Event::Read(a, b) => write!(f, "Read({}, {})", mk_dot_safe(a), mk_dot_safe(b)),
             Event::Post(a, b) => write!(f, "Post({}, {})", mk_dot_safe(a), mk_dot_safe(b)),
             Event::Get(a) => write!(f, "Get({})", mk_dot_safe(a)),
+            Event::NOOP => write!(f, "NOOP"),
         }
     }
 }
@@ -161,9 +163,9 @@ pub type Idx = (String, String, usize);
 pub struct ReadResult {
     pub events: HashMap<String, HashMap<String, Vec<Event>>>,
     pub edges: Vec<(EdgeTp, Idx, Idx)>,
-    has_rf: bool,
-    has_fr: bool,
-    has_pb: bool,
+    pub has_rf: bool,
+    pub has_fr: bool,
+    pub has_pb: bool,
 }
 
 impl ReadResult {

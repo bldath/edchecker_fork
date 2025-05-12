@@ -174,7 +174,8 @@ pub fn parse_str(s: &str) -> ReadResult {
                         Event::Post(hdl, msg) => {
                             pb.push((PB, idx, (hdl.clone(), msg.clone(), 0_usize)));
                         }
-                        Event::Get(_) => {}
+                        _ => {},
+                        
                     }
                 }
             }
