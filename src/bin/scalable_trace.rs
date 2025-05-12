@@ -5,10 +5,40 @@ use itertools::Itertools;
 use lib::model::EdgeTp;
 use lib::output::make_file;
 use rand::prelude::*;
-
 use clap::{command, Parser};
 use lib::model::ReadResult;
 use lib::model::Event;
+
+
+fn random_pb<R: Rng>(rr: &mut ReadResult, rng: &mut R) {
+    let ReadResult {
+        events,
+        edges,
+        ..
+    } = rr;
+
+    let msgs = events.iter().flat_map(| (k, v) | v.iter().map(|(m, _)| (k.clone(), m.clone()))).collect_vec();
+
+    let mut posted = vec![msgs[0].clone()];
+
+    for (hdl, msg) in msgs.iter().skip(1) {
+        let poster : (String, String) = posted.choose(rng).cloned().unwrap();
+        let e1 = events[&poster.0][&poster.1]
+            .iter()
+            .cloned()
+            .enumerate()
+            .skip(1)
+            .filter(|(_, e)| *e == Event::NOOP).collect_vec();
+
+        let e1 = e1.choose(rng).unwrap();
+
+        let evs = events.entry(poster.0.clone()).or_default().entry(poster.1.clone()).or_default();
+        evs[e1.0] = Event::Post(hdl.clone(), msg.clone());
+
+        edges.push((EdgeTp::PB, (poster.0.clone(), poster.1.clone(), e1.0), (hdl.clone(), msg.clone(), 0)));
+        posted.push((hdl.clone(), msg.clone()))
+    }
+}
 
 
 fn generate_trace(num_handlers: usize, num_messages: usize, num_events: usize, remote_edges: usize) -> ReadResult {
@@ -85,38 +115,18 @@ fn generate_trace(num_handlers: usize, num_messages: usize, num_events: usize, r
         edges.push((EdgeTp::RF, (h1.clone(), m1.clone(), e1.0), (h2.clone(), m2.clone(), e2.0)));  
     }
 
-    let msgs = events.iter().flat_map(|(hdl, msgs)| {
-        msgs.keys().map(|k| (hdl.clone(), k.clone()))
-    }).collect_vec();
-    
-    for (hdl, msg) in msgs.iter() {
-        let poster : String = events.keys().cloned().choose(&mut rng).unwrap();
-        let poster_msg : String = events[&poster].keys().filter(|x| *x != msg).cloned().choose(&mut rng).unwrap();
-        
-        let e1 = events[&poster][&poster_msg]
-            .iter()
-            .cloned()
-            .enumerate()
-            .skip(1)
-            .filter(|(_, e)| *e == Event::NOOP).collect_vec();
-
-        let poster_evs = events.entry(poster.clone()).or_default().entry(poster_msg.clone()).or_default();
-        let e1 = e1.choose(&mut rng).unwrap();
-        poster_evs[e1.0] = Event::Post(hdl.clone(), msg.clone());
-
-        edges.push((EdgeTp::PB, (poster.clone(), poster_msg.clone(), e1.0), (hdl.clone(), msg.clone(), 0)));
-    }
-
     //println!("Generated edges:\n{:?}", edges);
     
-    ReadResult {
+    let mut rr = ReadResult {
         events,
         edges,
         has_rf: true,
         has_fr: true,
         has_pb: true,
-    }
+    };
+    random_pb(&mut rr, &mut rng);
 
+    rr
 }
 
 

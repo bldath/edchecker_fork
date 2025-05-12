@@ -72,14 +72,14 @@ fn print_result(res: z3::SatResult, instance: &Instance, solver: &Solver, q: &Re
             for ei in trans_red.edge_indices() {
                 let (a, b) = trans_red.edge_endpoints(ei).unwrap();
 
-                let ag = revmap[a.index()];
-                let bg = revmap[b.index()];
+                let _ag = revmap[a.index()];
+                let _bg = revmap[b.index()];
 
-                if !graph.contains_edge(ag, bg) {
-                    println!("MISSING EDGE: {:?} -> {:?}", graph[ag], graph[bg]);
-                } else {
-                    println!("EXISTING EDGE: {:?} -> {:?}", graph[ag], graph[bg]);
-                }
+                // if !graph.contains_edge(ag, bg) {
+                //     println!("MISSING EDGE: {:?} -> {:?}", graph[ag], graph[bg]);
+                // } else {
+                //     println!("EXISTING EDGE: {:?} -> {:?}", graph[ag], graph[bg]);
+                // }
             }
             /*
             graph.retain_edges(| g, idx | {
