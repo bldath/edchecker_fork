@@ -14,7 +14,7 @@ use crate::model::{self, EGraph, EPair, EdgeTp, EdgeTp::*, Event, Handler, Messa
 
 pub fn read_file(filename: String) -> ReadResult {
     if let Ok(q) = fs::read_to_string(&filename) {
-        if filename.split('.').last().unwrap() == "json" {
+        if filename.split('.').next_back().unwrap() == "json" {
             return serde_json::from_str(&q).unwrap();
         }
 
