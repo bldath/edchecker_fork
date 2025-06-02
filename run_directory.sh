@@ -8,8 +8,8 @@ target=${1:?$(usage)}
 output=${2:?$(usage)}
 timeout=${3:-60}
 
-heuristics=(no simple full)
-adt=(multiset queue stack)
+heuristics=(simple)
+adt=(queue)
 
 echo "Running benchmarks with timeout $timeout s"
 
