@@ -114,7 +114,7 @@ pub struct Instance<'ctx> {
     edges: Vec<(EdgeTp, Idx, Idx)>,
 }
 
-impl<'ctx> Instance<'ctx> {
+impl Instance<'_> {
     pub fn assert(&self, solver: &Solver) {
         let ctx: &Context = self.z3_ctx;
         let (msg_type, consts, checks) = (&self.msg_type, &self.consts, &self.checks);

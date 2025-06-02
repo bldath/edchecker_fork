@@ -273,7 +273,7 @@ fn main() -> Result<(), std::io::Error> {
             match graph {
                 Ok(mut rr) => {
                     rr.build();
-                    let filename = path.split('/').last().unwrap();
+                    let filename = path.split('/').next_back().unwrap();
                     let out_dir = filename.split('.').next().unwrap();
 
                     let file = format!("{}/{}/trace{}.json", cli.output_dir, out_dir, i);
