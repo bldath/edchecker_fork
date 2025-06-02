@@ -172,7 +172,7 @@ impl Instance<'_> {
                 solver.assert(&Bool::or(ctx, &[m12, m21]));
             }
         }
-        let pb : HashMap<Idx, Idx> = self
+        let pb: HashMap<Idx, Idx> = self
             .edges
             .iter()
             .filter(|(tp, _, _)| *tp == EdgeTp::PB)
@@ -187,10 +187,12 @@ impl Instance<'_> {
                 let m2_post = pb.get(&(hdl.clone(), m2.0.clone(), 0));
                 if let (Some(m1_post), Some(m2_post)) = (m1_post, m2_post) {
                     //println!("{:?} → {:?}", m1_post, m2_post);
-                    let m12 = &hb.apply(&[&consts[m1_post], &consts[m2_post]])
+                    let m12 = &hb
+                        .apply(&[&consts[m1_post], &consts[m2_post]])
                         .as_bool()
                         .unwrap();
-                    let m21 = &hb.apply(&[&consts[m2_post], &consts[m1_post]])
+                    let m21 = &hb
+                        .apply(&[&consts[m2_post], &consts[m1_post]])
                         .as_bool()
                         .unwrap();
 
