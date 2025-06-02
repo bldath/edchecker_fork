@@ -75,9 +75,10 @@ def search_matches(lines):
 
     
 
-for i in glob.glob("./droid_output/*.out", recursive=True):
+for i in glob.glob("./droid_output/**/*.out", recursive=True):
     with open(i) as f:
         path = i.split('/')
+        print(path)
         exp = path[-2]
         [trace, tool, adt, heur] = path[-1].split('.')[0].split('_')
 
@@ -87,7 +88,7 @@ for i in glob.glob("./droid_output/*.out", recursive=True):
         
         [exp, param] = exp.split('_')
         d.test = exp
-        d.param = int(param)
+        #d.param = int(param)
         r = f.readlines()
         res_strs = search_matches(r)
         if res_strs is None:

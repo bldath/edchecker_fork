@@ -3,8 +3,8 @@
 #!/bin/bash
 
 target=./droid_output
-heuristics=(no simple full)
-adt=(multiset queue stack)
+heuristics=(no) # simple full)
+adt=(multiset queue) # queue stack)
 
 for h in "${heuristics[@]}"; do
     for adt in "${adt[@]}"; do
@@ -12,7 +12,7 @@ for h in "${heuristics[@]}"; do
         parallel --rpl '{expt} s:(\.*/[-_\w]+)*/([-_\w]+/[-_\w]+)\.trace:\2:;' \
                  --timeout 60 --bar \
                  "dirname {expt} | xargs -I% mkdir -p $target/%; ./target/release/z3checker ${adt} ${h} {} > $target/{expt}_z3_${adt}_${h}.out" \
-                 ::: droid_traces/*/*.trace
+                 ::: droid_traces/**/*.trace
 
         # parallel --rpl '{expt} s:(\.*/[-_\w]+)*/([-_\w]+/[-_\w]+)\.trace:\2:;' \
         #          --timeout 60 --bar \

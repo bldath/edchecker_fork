@@ -172,6 +172,34 @@ impl<'ctx> Instance<'ctx> {
                 solver.assert(&Bool::or(ctx, &[m12, m21]));
             }
         }
+        let pb : HashMap<Idx, Idx> = self
+            .edges
+            .iter()
+            .filter(|(tp, _, _)| *tp == EdgeTp::PB)
+            .map(|(_, a, b)| (b.clone(), a.clone()))
+            .collect();
+
+        // MO requirement
+        //println!("MO requirement");
+        for (hdl, msgs) in self.events.iter() {
+            for (m1, m2) in msgs.iter().tuple_combinations() {
+                let m1_post = pb.get(&(hdl.clone(), m1.0.clone(), 0));
+                let m2_post = pb.get(&(hdl.clone(), m2.0.clone(), 0));
+                if let (Some(m1_post), Some(m2_post)) = (m1_post, m2_post) {
+                    //println!("{:?} → {:?}", m1_post, m2_post);
+                    let m12 = &hb.apply(&[&consts[m1_post], &consts[m2_post]])
+                        .as_bool()
+                        .unwrap();
+                    let m21 = &hb.apply(&[&consts[m2_post], &consts[m1_post]])
+                        .as_bool()
+                        .unwrap();
+
+                    let mo = Bool::or(ctx, &[m12, m21]);
+
+                    solver.assert(&mo.implies(&mo));
+                }
+            }
+        }
 
         // ???
         //println!("{:?}", solver);

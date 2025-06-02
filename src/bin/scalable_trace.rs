@@ -9,6 +9,62 @@ use lib::model::ReadResult;
 use lib::output::make_file;
 use rand::prelude::*;
 
+#[derive(Debug)]
+struct MessageNode {
+    hdl: String,
+    msg: String,
+    children: Vec<MessageNode>
+}
+
+impl<'a> Iterator for &'a mut MessageNode {
+    type Item = &'a mut MessageNode;
+
+    fn next(&mut self) -> Option<Self::Item> {
+
+    }
+}
+
+
+impl MessageNode {
+    fn new(hdl: String, msg: String) -> MessageNode {
+        MessageNode {
+            hdl,
+            msg,
+            children: vec![],
+        }
+    }
+
+    fn choose<'a>(&'a mut self, cnt : &mut u64, curr: &'a mut &'a mut MessageNode) {
+        for o in self.children.iter_mut() {
+            o.choose(cnt, curr);
+        }
+        *cnt += 1;
+        if *cnt == 1 {
+            *curr = self;
+        } else {
+            let prob = 1.0 / (*cnt as f64);
+            if rand::random_bool(prob) {
+                *curr = self
+            }
+        }
+    }
+
+
+    fn add(&mut self, hdl: String, msg: String) {
+        let mut nn = MessageNode::new(hdl, msg);
+        let mut chosen = &mut nn;
+        let mut cnt = 0;
+        self.choose(&mut cnt, chosen);
+
+        println!("Chose: {:?}", chosen);
+        chosen.children.push(nn);
+
+
+
+
+    }
+}
+
 fn random_pb<R: Rng>(rr: &mut ReadResult, rng: &mut R) {
     let ReadResult { events, edges, .. } = rr;
 
@@ -16,6 +72,12 @@ fn random_pb<R: Rng>(rr: &mut ReadResult, rng: &mut R) {
         .iter()
         .flat_map(|(k, v)| v.iter().map(|(m, _)| (k.clone(), m.clone())))
         .collect_vec();
+
+    let mut posted = MessageNode::new(msgs[0].0.clone(), msgs[0].1.clone());
+
+    for (hdl, msg) in msgs.iter().skip(1) {
+        posted.add(hdl.clone(), msg.clone());
+    }
 
     let mut posted = vec![msgs[0].clone()];
 
