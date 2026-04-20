@@ -4,6 +4,7 @@ use itertools::{iproduct, Itertools};
 use petgraph::graph::NodeIndex;
 use petgraph::visit::{EdgeRef, IntoNeighborsDirected, NodeRef};
 use petgraph::Direction::Incoming;
+use petgraph::algo::has_path_connecting; //ADDED
 
 use crate::model::{EGraphData, EdgeTp::*};
 use crate::msg_algorithms::flip_iter;
@@ -91,6 +92,62 @@ pub fn stack_do(mut g: EGraph, data: &EGraphData) -> EGraph {
                 })
         })
         .collect_vec();
+    add_edges(&mut g, q);
+    g
+}
+
+//ADDED TEMPORARY HACK FOR PRIORITY
+pub fn priority_of(id: &str) -> Vec<i64> { 
+    id.split('.')
+        .map(|s| s.parse::<i64>().unwrap_or(0))
+        .collect()
+}
+
+//ADDED PQ DO function
+pub fn priority_queue_do(mut g: EGraph, data: &EGraphData) -> EGraph {
+    let q = data
+        .iter()
+        .flat_map(|(_, msgs)| {
+            msgs.iter()
+                .tuple_combinations()
+                .flat_map(|(x, y)| vec![(x, y), (y, x)]) //both directions
+                .filter_map(|((m1, e1), (m2, e2))| {
+                    let m1get = *e1.first().unwrap();
+                    let m1done = *e1.last().unwrap();
+
+                    let m2get = *e2.first().unwrap();
+                    let m2done = *e2.last().unwrap();
+
+                    if let (Some(m1post), Some(m2post)) =
+                        (get_post(&g, m1get), get_post(&g, m2get))
+                    {
+                        //Check priority first (1st PQ condition)
+                        if priority_of(m1) < priority_of(m2)
+                        //2nd PQ condition: post(m1) -> post(m2)
+                        && has_path_connecting(&g, m1post, m2post, None)
+                        {
+                            return Some((DO, m1done, m2get));
+                            /*
+                            //Check if dequeue order is already enforced
+                            let eo_ok = has_path_connecting(
+                                &g,
+                                m1done,
+                                m2get,
+                                None,
+                            );
+
+                            //If not enforced, add DO edge: get(m1) before get(m2) (will introduce a cycle that will be detected in caller function)
+                            if !eo_ok {
+                                return Some((DO, m1done, m2get));
+                            }*/
+                            //ANOTHER ALTERNATIVE IS TO THROW AWAY THE GRAPH (a kind of heuristic maybe?)
+                        }
+                    }
+                    None
+                })
+        })
+        .collect_vec();
+
     add_edges(&mut g, q);
     g
 }

@@ -235,6 +235,7 @@ pub fn add_heuristics(g: &mut EGraph, data: &EGraphData, heur: Heuristic, adt: A
                     heuristic_4(g, data);
                 }
                 ADT::Register => (),
+                ADT::PriorityQueue => (),//ADDED
             }
         }
     }

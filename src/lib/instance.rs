@@ -1,3 +1,4 @@
+use crate::do_edges::priority_of; //ADDED
 use std::{collections::HashMap, fs::read, ops::Not, process::exit};
 
 use ast::{forall_const, Ast, Bool};
@@ -213,6 +214,7 @@ impl Instance<'_> {
             ADT::Queue => self.queue_do(solver),
             ADT::Stack => self.stack_do(solver),
             ADT::Register => self.reg_do(solver),
+            ADT::PriorityQueue => self.priority_queue_do(solver), //ADDED
         }
     }
 
@@ -266,6 +268,62 @@ impl Instance<'_> {
             }
         }
     }
+
+    //ADDED FUNCTION FOR PQ SOLVER
+    pub fn priority_queue_do(&self, solver: &Solver) {
+        let ctx = self.z3_ctx;
+        let consts = &self.consts;
+        let hb = &self.order;
+
+        //println!("Adding queue do edges");
+        // do = pb^{-1} . mo . pb
+
+        let pb = self
+            .edges
+            .iter()
+            .filter(|(tp, _, _)| *tp == EdgeTp::PB)
+            .map(|(_, a, b)| (a, b));
+        // MO is represented by hb. If hb then mo.
+
+        let pairs = pb.permutations(2).map(|it| (it[0], it[1]));
+
+        for ((ai, bi), (ci, di)) in pairs {
+            if let (Some(a), Some(b), Some(c), Some(d)) = (
+                consts.get(ai),
+                consts.get(bi),
+                consts.get(ci),
+                consts.get(di),
+            ) {
+                if a == c {
+                    continue;
+                } // We do not want to add do edges for the same message
+                if di.0 != bi.0 {
+                    continue;
+                } // We need to be on the same handler
+                  //println!("Adding do edge constraint: {:?} -> {:?}", b, d);
+
+                // We know:
+                //      a (post) --[pb] -> b (get)
+                //      c (post) --[pb] -> d (get)
+                // Now, if a --[hb] -> c
+                let ac = hb.apply(&[a, c]).as_bool().unwrap();
+                // b --[pb^{-1}]-> a --[hb]-> c --[pb]-> d
+                // b.done --[do]-> d
+                let (bh, bm, bidx) = &bi;
+                let b_done = (bh.clone(), bm.clone(), self.events[bh][bm] - 1);
+                let b_done = &consts[&b_done];
+
+                let bd = hb.apply(&[b_done, d]).as_bool().unwrap();
+                if priority_of(&ai.1) < priority_of(&ci.1) { //CHANGED
+                    solver.assert(&ac.implies(&bd));
+                }
+
+            } else {
+                continue;
+            }
+        }
+    }
+
 
     fn stack_do(&self, solver: &Solver) {
         let consts = &self.consts;
