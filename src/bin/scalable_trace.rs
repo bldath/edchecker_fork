@@ -1,11 +1,12 @@
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 
-use clap::{command, Parser};
+use clap::{Parser};
 use itertools::Itertools;
 use lib::model::EdgeTp;
 use lib::model::Event;
 use lib::model::ReadResult;
+use lib::model::MidStruct;
 use lib::output::make_file;
 use petgraph::algo::has_path_connecting;
 use petgraph::graph::{DiGraph, NodeIndex};
@@ -23,7 +24,7 @@ fn test_arena() {
     assert_eq!(*arena[child].get(), 1);
 }
 
-fn random_pb<R: Rng>(rr: &mut ReadResult, rng: &mut R) -> Arena<(String, String)> {
+fn random_pb<R: Rng>(rr: &mut ReadResult, rng: &mut R) -> Arena<(String, MidStruct)> {
     let ReadResult { events, edges, .. } = rr;
 
     let msgs = events
@@ -43,7 +44,7 @@ fn random_pb<R: Rng>(rr: &mut ReadResult, rng: &mut R) -> Arena<(String, String)
 
         let pid = post_tree.get_node_id(post_node).unwrap();
 
-        let e1 = events[&poster.0][&poster.1]
+        let e1 = events[&poster.0][&poster.1] 
             .iter()
             .cloned()
             .enumerate()
@@ -56,9 +57,9 @@ fn random_pb<R: Rng>(rr: &mut ReadResult, rng: &mut R) -> Arena<(String, String)
         let evs = events
             .entry(poster.0.clone())
             .or_default()
-            .entry(poster.1.clone())
+            .entry(poster.1.clone()) 
             .or_default();
-        evs[e1.0] = Event::Post(hdl.clone(), msg.clone());
+        evs[e1.0] = Event::Post(hdl.clone(), msg.id.clone(), msg.priority.clone());
 
         ord.insert(((hdl, msg), poster.clone()));
         edges.push((
@@ -96,7 +97,7 @@ fn generate_trace(
     num_events: usize,
     remote_edges: usize,
 ) -> ReadResult {
-    let mut events: HashMap<String, HashMap<String, Vec<Event>>> = HashMap::new();
+    let mut events: HashMap<String, HashMap<MidStruct, Vec<Event>>> = HashMap::new();
     let edges = Vec::new();
 
     assert!(
@@ -128,13 +129,13 @@ fn generate_trace(
             let message_id = format!("h_{}_m_{}", i, j);
             let mut message_events = Vec::new();
             let n_events = num_events / n_msgs + if j < num_events % n_msgs { 1 } else { 0 };
-            message_events.push(Event::Get(message_id.clone()));
+            message_events.push(Event::Get(message_id.clone(), None)); //
             for _ in 1..n_events {
                 let event = Event::NOOP;
                 message_events.push(event);
             }
 
-            handler_msgs.insert(message_id, message_events);
+            handler_msgs.insert(MidStruct {id: message_id, priority: None}, message_events); //
         }
 
         events.insert(handler_id, handler_msgs);

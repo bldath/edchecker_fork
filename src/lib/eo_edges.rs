@@ -14,7 +14,7 @@ use petgraph::{Graph, IntoWeightedEdge};
 use crate::algorithms::add_edges;
 use crate::cli::*;
 use crate::do_edges::get_post;
-use crate::model::{get_mgraph, Argument, EGraphData, EPair, Event};
+use crate::model::{get_mgraph, Argument, EGraphData, EPair, Event, MidStruct};
 use crate::msg_algorithms::{flip_iter, flip_iterator};
 use crate::preprocess::{pair_fmap, quad_fmap};
 use crate::{model::EGraph, preprocess::triple_fmap};
@@ -56,8 +56,8 @@ pub fn mo_cases<'a>(
 pub fn eo_cases<'a>(
     g: &'a EGraph,
     data: &'a EGraphData,
-    missing: &'a [(Argument, Argument, Argument)],
-) -> impl Iterator<Item = (Vec<(Argument, Argument, Argument)>, EGraph)> + 'a {
+    missing: &'a [(Argument, MidStruct, MidStruct)],
+) -> impl Iterator<Item = (Vec<(Argument, MidStruct, MidStruct)>, EGraph)> + 'a {
     flip_iterator(missing).map(move |q| {
         let mut gp = g.clone();
         for (hdl, q1, q2) in &q {
@@ -67,8 +67,8 @@ pub fn eo_cases<'a>(
     })
 }
 
-pub fn missing_eo(g: &EGraph, data: &EGraphData) -> Vec<(Argument, Argument, Argument)> {
-    let mut q: HashSet<(Argument, Argument, Argument)> = data
+pub fn missing_eo(g: &EGraph, data: &EGraphData) -> Vec<(Argument, MidStruct, MidStruct)> {
+    let mut q: HashSet<(Argument, MidStruct, MidStruct)> = data //CHANGED
         .iter()
         .flat_map(|(hdl, msgs)| {
             msgs.iter()
@@ -87,7 +87,7 @@ pub fn missing_eo(g: &EGraph, data: &EGraphData) -> Vec<(Argument, Argument, Arg
 
     q.into_iter().collect_vec()
 }
-
+//TODO?
 pub fn missing_mo(g: &EGraph, data: &EGraphData) -> Vec<(bool, NodeIndex, NodeIndex)> {
     data.iter()
         .flat_map(|(hdl, msgs)| {
@@ -116,7 +116,7 @@ pub fn missing_mo(g: &EGraph, data: &EGraphData) -> Vec<(bool, NodeIndex, NodeIn
         .collect_vec()
 }
 
-fn insert_eo(g: &mut EGraph, data: &EGraphData, hdl: Argument, m1: Argument, m2: Argument) {
+fn insert_eo(g: &mut EGraph, data: &EGraphData, hdl: Argument, m1: MidStruct, m2: MidStruct) {
     let m1 = data[&hdl][&m1].last().unwrap();
     let m2 = data[&hdl][&m2].first().unwrap();
 

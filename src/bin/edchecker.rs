@@ -23,56 +23,16 @@ use std::time::Instant;
 
 use io::*;
 
-/*
-NOTES:
-
-pub struct Handler {
-    pub id: Argument,
-    pub messages: Vec<Message>,
-}
-
-pub struct Message {
-    pub id: Argument,
-    pub evs: Vec<Event>,
-}
-
-We see that a handler has a handler ID (Argument is type String) and a list of messages, and
-a message has a message ID and a list of events contained in the message (i.e. po from first to last)
-We can borrow a struct and extract its fields by dot notation and name (i.e. &msg.id for msg ID, &hdl.msgs[1].id for 2nd msg in hdl).
-(Must add .clone() if we need an owned value (i.e. not just for reading it).)
-
-EGraph is type DiGraph<EPair, EdgeTp>, and
-Struct EPair(pub Argument, pub Argument, pub Event), where
-pub enum Event {
-    Write(Argument, Argument),
-    Read(Argument, Argument),
-    Post(Argument, Argument),
-    Get(Argument),
-    NOOP,
-} and
-type Argument is String, and
-this is how to create an EPair, so the name is confusing: EPair(hid.clone(), mid.clone(), ev.clone()))
-and it's type struct EPair(pub Argument, pub Argument, pub Event), so
-extracting the middle field will give the message ID.
-Since EPair is a tuple struct where fields don't have names, extraction must be done by position &e.1 (which doesn't work when fields are named).
-
-type HandlerData = HashMap<Argument, Vec<NodeIndex>>
-
-type EGraphData = HashMap<Argument, HandlerData>
-
-type ExecutionGraph = (EGraph, EGraphData)
-
-*/
 fn run_check(mut g: EGraph, data: &EGraphData, cli: &Cli) -> Option<EGraph> {
-    let missing_eo = missing_eo(&g, data); //Beware outout type. Not filtered by connecting path in graph
-    let missing_tmp = missing_mo(&g, data); //Beware output type. Filtered by connecting path in graph
-    let mut missing_mo = vec![]; //Beware input type.
+    let missing_eo = missing_eo(&g, data);
+    let missing_tmp = missing_mo(&g, data);
+    let mut missing_mo = vec![];
 
     for (b, x, y) in &missing_tmp {
-        if *b && cli.adt != ADT::Multiset { //If mo edge exists and mailbox is not Multiset
-            g.add_edge(*x, *y, EdgeTp::MO); //Insert missing mo edge in graph
+        if *b && cli.adt != ADT::Multiset {
+            g.add_edge(*x, *y, EdgeTp::MO);
         } else {
-            missing_mo.push((*x, *y)); //Else, save the pair of node indexes in vector
+            missing_mo.push((*x, *y));
         }
     }
 
@@ -85,7 +45,7 @@ fn run_check(mut g: EGraph, data: &EGraphData, cli: &Cli) -> Option<EGraph> {
             ADT::Multiset => {
                 let g_multiset = multiset_do(g.clone());
                 if !is_cyclic_directed(&g_multiset) {
-                    return Some(g_multiset); //return acyclic graph if there is some
+                    return Some(g_multiset);
                 } else if !saved {
                     //let _ig = g.clone();
                     //let q = kosaraju_scc(&g).iter().filter(|x| x.len() > 1).map(|x| x.iter().map(|y| ig[*y].clone()).collect_vec()).collect_vec();
@@ -94,7 +54,7 @@ fn run_check(mut g: EGraph, data: &EGraphData, cli: &Cli) -> Option<EGraph> {
                     if cli.draw {
                         write_dot(&eg, "multiset".into(), "cycle".into()).unwrap();
                     }
-                    saved = true; //TODO: CHECK THIS BOOL
+                    saved = true;
                 }
             }
             _ => {
@@ -103,7 +63,7 @@ fn run_check(mut g: EGraph, data: &EGraphData, cli: &Cli) -> Option<EGraph> {
                         ADT::Queue => Some(queue_do(gp, data)),
                         ADT::Stack => Some(stack_do(gp, data)),
                         ADT::Register => Some(reg_do(gp)),
-                        ADT::PriorityQueue => Some(priority_queue_do(gp, data)), //ADDED
+                        ADT::PriorityQueue => Some(priority_queue_do(gp, data)),
                         _ => None,
                     } {
                         if !is_cyclic_directed(&q) {
@@ -123,31 +83,31 @@ fn run_check(mut g: EGraph, data: &EGraphData, cli: &Cli) -> Option<EGraph> {
             }
         }
     }
-    None //Return None if there is no acyclic graph
+    None
 }
 
 fn main() -> Result<()> {
-    let cli = Cli::parse(); //Parse arguments and put them in struct
+    let cli = Cli::parse();
 
-    env_logger::Builder::new() //Error logging
+    env_logger::Builder::new() 
         .filter_level(cli.verbosity.log_level_filter())
         .format(|buf, record| writeln!(buf, "{}", record.args()))
         .init();
 
-    let start = Instant::now(); //Start timer
-    let mut q = read_file(cli.file.clone()); //Parse input file and put data in struct
-    q.build(); //Compute rf, fr and pb and add to struct
+    let start = Instant::now();
+    let mut q = read_file(cli.file.clone());
+    q.build();
 
-    let (mut g, data) = mk_graph(&q); //Make execution graph from struct
-    let parsed = Instant::now(); //Time
+    let (mut g, data) = mk_graph(&q);
+    let parsed = Instant::now();
 
-    if cli.draw { //if success
+    if cli.draw {
         let eg = (g.clone(), data.clone());
-        write_dot(&eg, cli.file.clone(), "input".into())?; //Write parsed input graph in dot format
+        write_dot(&eg, cli.file.clone(), "input".into())?;
     }
 
-    println!("Handlers: {:?}", q.events.len()); //Print statistics
-    let num_mess: usize = q //Calculate statistics
+    println!("Handlers: {:?}", q.events.len());
+    let num_mess: usize = q 
         .events
         .iter()
         .map(|x| x.1.len())
@@ -159,31 +119,32 @@ fn main() -> Result<()> {
     let num_ev: usize = q
         .events
         .iter()
+        //.map(|x| x.1.iter().map(|y| y.1.len()).sum::<usize>())
         .map(|x| x.1.iter().map(|y| y.1.len()).sum::<usize>())
         .sum();
 
     println!("Events: {:?}", num_ev);
     println!("Parsing: {:?}µs", (parsed - start).as_micros());
-    preprocess(&mut g, &data, cli.heuristics, cli.adt); //Preprocess graph by adding fr, rf and pb edges to it
-    let preprocessed = Instant::now(); //Time
-    println!("Preprocessing: {:?}µs", (preprocessed - parsed).as_micros()); //Print preprocessing time
+    preprocess(&mut g, &data, cli.heuristics, cli.adt);
+    let preprocessed = Instant::now();
+    println!("Preprocessing: {:?}µs", (preprocessed - parsed).as_micros());
 
-    if cli.draw { //if success
+    if cli.draw {
         let eg = (g.clone(), data.clone());
-        write_dot(&eg, cli.file.clone(), "pp".into())?; //Write preprocessed graph in dot format
+        write_dot(&eg, cli.file.clone(), "pp".into())?;
     }
 
-    let res = run_check(g, &data, &cli); //Result is EGraph or None
-    let done = Instant::now(); //Time
+    let res = run_check(g, &data, &cli);
+    let done = Instant::now();
     println!("Check: {:?}µs", (done - preprocessed).as_micros());
     println!("Total: {:?}µs", (done - start).as_micros());
 
     println!("Result: {:?}", res.is_some());
 
-    if let Some(q) = res { //if result is not None
-        if cli.draw { //if success
+    if let Some(q) = res {
+        if cli.draw {
             let eg = (q.clone(), data.clone());
-            write_dot(&eg, cli.file.clone(), "ok".into())?; //Write result graph in dot format
+            write_dot(&eg, cli.file.clone(), "ok".into())?;
         }
     }
 
@@ -195,5 +156,5 @@ fn main() -> Result<()> {
     // println!("Stack: {:?}", s_ok);
     // println!("Reg: {:?}", r_ok);
 
-    Ok(()) //return value
+    Ok(())
 }

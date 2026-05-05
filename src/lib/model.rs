@@ -31,8 +31,8 @@ pub type Argument = String;
 pub enum Event {
     Write(Argument, Argument),
     Read(Argument, Argument),
-    Post(Argument, Argument),
-    Get(Argument),
+    Post(Argument, Argument, Option<Argument>),
+    Get(Argument, Option<Argument>),
     NOOP,
 }
 
@@ -51,8 +51,8 @@ impl Display for Event {
         match self {
             Event::Write(a, b) => write!(f, "Write({}, {})", mk_dot_safe(a), mk_dot_safe(b)),
             Event::Read(a, b) => write!(f, "Read({}, {})", mk_dot_safe(a), mk_dot_safe(b)),
-            Event::Post(a, b) => write!(f, "Post({}, {})", mk_dot_safe(a), mk_dot_safe(b)),
-            Event::Get(a) => write!(f, "Get({})", mk_dot_safe(a)),
+            Event::Post(a, b, c) => write!(f, "Post({}, {}, {})", mk_dot_safe(a), mk_dot_safe(b), if let Some(c) = c {mk_dot_safe(c)} else {"".to_string()}),
+            Event::Get(a, b) => write!(f, "Get({}, {})", mk_dot_safe(a), if let Some(b) = b {mk_dot_safe(b)} else {"".to_string()}),
             Event::NOOP => write!(f, "NOOP"),
         }
     }
@@ -66,9 +66,15 @@ impl Display for Event {
 //     }
 // }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Message {
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct MidStruct {
     pub id: Argument,
+    pub priority: Option<Argument>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Message {
+    pub mid_struct: MidStruct,
     pub evs: Vec<Event>,
 }
 
@@ -157,11 +163,11 @@ pub struct Handler {
 
 //pub struct ReadResult(pub Vec<Handler>, pub Vec<(EdgeTp, Event, Event)>);
 
-pub type Idx = (String, String, usize);
+pub type Idx = (String, MidStruct, usize);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ReadResult {
-    pub events: HashMap<String, HashMap<String, Vec<Event>>>,
+    pub events: HashMap<String, HashMap<MidStruct, Vec<Event>>>,
     pub edges: Vec<(EdgeTp, Idx, Idx)>,
     pub has_rf: bool,
     pub has_fr: bool,
@@ -170,7 +176,7 @@ pub struct ReadResult {
 
 impl ReadResult {
     pub fn new(
-        events: HashMap<String, HashMap<String, Vec<Event>>>,
+        events: HashMap<String, HashMap<MidStruct, Vec<Event>>>,
         edges: Vec<(EdgeTp, Idx, Idx)>,
     ) -> Self {
         Self {
@@ -219,14 +225,14 @@ impl ReadResult {
         self.has_rf = true;
 
         for (hdl, msgs) in self.events.iter() {
-            for (mid, evs) in msgs.iter() {
+            for (mid_struct, evs) in msgs.iter() {
                 for (i, ev) in evs.iter().enumerate() {
                     match ev {
                         Event::Write(v, val) => {
-                            writers.insert((v.clone(), val.clone()), (hdl.clone(), mid.clone(), i));
+                            writers.insert((v.clone(), val.clone()), (hdl.clone(), mid_struct.clone(), i));
                         }
                         Event::Read(v, val) => {
-                            readers.push((v.clone(), val.clone(), (hdl.clone(), mid.clone(), i)));
+                            readers.push((v.clone(), val.clone(), (hdl.clone(), mid_struct.clone(), i)));
                         }
                         _ => (),
                     }
@@ -273,13 +279,12 @@ impl ReadResult {
         self.has_pb = true;
 
         for (hdl, msgs) in &self.events {
-            for (mid, evs) in msgs {
+            for (mid_struct, evs) in msgs {
                 for (i, ev) in evs.iter().enumerate() {
-                    if let Event::Post(phdl, pmsg) = ev {
-                        //let idx = (hdl.clone(), mid.clone(), i);
-                        let idx = (hdl.clone(), mid.clone(), i);
+                    if let Event::Post(phdl, pmsg, prio) = ev {
+                        let idx = (hdl.clone(), mid_struct.clone(), i);
                         self.edges
-                            .push((EdgeTp::PB, idx.clone(), (phdl.clone(), pmsg.clone(), 0)));
+                            .push((EdgeTp::PB, idx.clone(), (phdl.clone(), MidStruct {id: pmsg.clone().to_string(), priority: prio.clone()}, 0)));
                     }
                 }
             }
@@ -287,23 +292,23 @@ impl ReadResult {
     }
 }
 
-pub type HandlerData = HashMap<Argument, Vec<NodeIndex>>;
+pub type HandlerData = HashMap<MidStruct, Vec<NodeIndex>>;
 pub type EGraphData = HashMap<Argument, HandlerData>;
 
 pub type ExecutionGraph = (EGraph, EGraphData);
 
 pub fn mk_graph(rr: &ReadResult) -> ExecutionGraph {
     let mut d = EGraph::new();
-    let mut hd: HashMap<String, HashMap<String, Vec<NodeIndex>>> = HashMap::new();
+    let mut hd: HashMap<String, HashMap<MidStruct, Vec<NodeIndex>>> = HashMap::new();
 
     rr.events.iter().for_each(|(hid, msgs)| {
         //let mut hid = Argument::new();
-        let mut map = HashMap::<Argument, Vec<NodeIndex>>::new();
-        msgs.iter().for_each(|(mid, evs)| {
+        let mut map = HashMap::<MidStruct, Vec<NodeIndex>>::new();
+        msgs.iter().for_each(|(mid_struct, evs)| {
             let mut mdata = Vec::<NodeIndex>::new();
             let mut last: Option<NodeIndex<u32>> = None;
             evs.iter().for_each(|ev| {
-                let n = d.add_node(EPair(hid.clone(), mid.clone(), ev.clone()));
+                let n = d.add_node(EPair(hid.clone(), mid_struct.id.clone(), ev.clone()));
                 mdata.push(n);
                 if let Some(l) = last {
                     d.add_edge(l, n, EdgeTp::PO);
@@ -311,7 +316,7 @@ pub fn mk_graph(rr: &ReadResult) -> ExecutionGraph {
                 last = Some(n);
             });
 
-            map.insert(mid.clone(), mdata);
+            map.insert(mid_struct.clone(), mdata);
         });
 
         hd.insert(hid.clone(), map);
@@ -330,11 +335,11 @@ pub fn get_mgraph(g: &EGraph) -> MGraph {
     let mut m = MGraph::new();
     for n in g.node_indices() {
         match &g[n] {
-            EPair(hdl1, mid, Event::Get(mid2)) => {
+            EPair(hdl1, mid, Event::Get(mid2, prio)) => {
                 assert!(mid == mid2);
                 m.add_node(MGraphE(true, n, mid.clone()));
             }
-            EPair(hdl1, mid, Event::Post(th, mid2)) => {
+            EPair(hdl1, mid, Event::Post(th, mid2, prio)) => {
                 m.add_node(MGraphE(false, n, mid2.clone()));
             }
             _ => (),

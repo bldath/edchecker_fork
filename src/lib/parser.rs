@@ -10,7 +10,7 @@ use std::{
 
 use model::Idx;
 
-use crate::model::{self, EGraph, EPair, EdgeTp, EdgeTp::*, Event, Handler, Message, ReadResult};
+use crate::model::{self, EGraph, EPair, EdgeTp, EdgeTp::*, Event, Handler, Message, ReadResult, MidStruct};
 
 pub fn read_file(filename: String) -> ReadResult {
     if let Ok(q) = fs::read_to_string(&filename) {
@@ -30,10 +30,15 @@ pub fn parse_event(s: &String) -> Option<Event> {
         let op: String = c.get(1).unwrap().as_str().to_lowercase();
         let a1: String = c.get(2).unwrap().as_str().into();
         let a2: String = c.get(3).unwrap().as_str().into();
+        let a3: Option<String> = if let Some(v) = c.get(4) {
+            Some(v.as_str().to_string())
+            } else {
+                None
+            };
         return match op.as_str() {
             "write" => Some(Event::Write(a1, a2)),
             "read" => Some(Event::Read(a1, a2)),
-            "post" => Some(Event::Post(a1, a2)),
+            "post" => Some(Event::Post(a1, a2, a3)),
             _ => None,
         };
     }
@@ -45,24 +50,33 @@ pub fn list_to_message(l: &[String]) -> Option<Message> {
     let get_msg = &l[0];
     let events = l.iter().skip(1);
 
-    let get_regex = Regex::new(r"[gG]et\(([\w\.]*)\)").unwrap();
+    let get_regex = Regex::new(r"[gG]et\(([\w\.]+)(?:,([\w\.]+))?\)").unwrap(); //
 
-    let mid = if let Some(cap) = get_regex.captures(get_msg) {
+    /*let mid = if let Some(cap) = get_regex.captures(get_msg) {
         cap.get(1).unwrap().as_str()
     } else {
         panic!("What {}", get_msg);
-    };
+    };*/
+
+    let cap = get_regex //
+        .captures(get_msg)
+        .unwrap_or_else(|| panic!("What {}", get_msg));
+
+    let mid = cap.get(1).unwrap().as_str();
+    let prio = cap.get(2).map(|p| p.as_str().to_string()); //
 
     let sevs = events.filter_map(parse_event);
 
-    let head = vec![Event::Get(mid.into())];
+    let head = vec![Event::Get(mid.into(), prio.clone())]; //
     let evs: Vec<Event> = head.into_iter().chain(sevs).collect();
 
-    let m = Message {
+    Some(Message {
+        mid_struct: MidStruct { //
         id: mid.into(),
-        evs,
-    };
-    Some(m)
+        priority: prio.clone(),
+        },
+        evs: evs, 
+    })
 }
 
 pub fn parse_edgetp(s: &str) -> Option<EdgeTp> {
@@ -122,11 +136,12 @@ fn idx_of(
         _ => panic!("Unsupported event type for idx_of"),
     }
 }
+
 /// Parse a string into a ReadResult.
 /// The string is expected to be of the .trace format.
 /// Does not construct RF/FR edges.
 pub fn parse_str(s: &str) -> ReadResult {
-    let mut handlers = HashMap::<String, HashMap<String, Vec<Event>>>::new();
+    let mut handlers = HashMap::<String, HashMap<MidStruct, Vec<Event>>>::new();
     let mut active_handler: String = "NONE".into();
     let strs: Vec<String> = s.split('$').map(|x| x.replace('\n', " ")).collect();
     let handler_strs: Vec<String> = strs[0].split('@').skip(1).map(|x| x.into()).collect();
@@ -150,17 +165,15 @@ pub fn parse_str(s: &str) -> ReadResult {
                 .skip(1)
                 .map(|ms| ms.split("->").map(|x| x.trim().replace(' ', "")).collect())
                 .collect();
-
             // Now we have the events as text! Time to map them to Messages!
-            let msgs: HashMap<String, Vec<Event>> = m
+             let msgs: HashMap<MidStruct, Vec<Event>> = m
                 .iter()
                 .filter_map(|s| list_to_message(s))
-                .map(|msg| (msg.id, msg.evs))
+                .map(|msg| (msg.mid_struct, msg.evs)) 
                 .collect();
-
-            for (mid, evs) in msgs.iter() {
+            for (mid_struct, evs) in msgs.iter() {
                 for (i, e) in evs.iter().enumerate() {
-                    let idx: Idx = (hid.clone(), mid.clone(), i);
+                    let idx: Idx = (hid.clone(), mid_struct.clone(), i);
                     match e {
                         Event::Write(var, val) => {
                             writers.insert((var.clone(), val.clone()), idx);
@@ -171,14 +184,13 @@ pub fn parse_str(s: &str) -> ReadResult {
                                 .or_insert(vec![])
                                 .push(idx);
                         }
-                        Event::Post(hdl, msg) => {
-                            pb.push((PB, idx, (hdl.clone(), msg.clone(), 0_usize)));
+                        Event::Post(hdl, msg, prio) => {
+                            pb.push((PB, idx, (hdl.clone(), MidStruct {id: msg.clone(), priority: prio.clone()}, 0_usize)));
                         }
                         _ => {}
                     }
                 }
             }
-
             (hid, msgs)
         })
         .collect();

@@ -1,4 +1,4 @@
-use crate::do_edges::priority_of; //ADDED
+use crate::{do_edges::priority_of, model::MidStruct};
 use std::{collections::HashMap, fs::read, ops::Not, process::exit};
 
 use ast::{forall_const, Ast, Bool};
@@ -15,7 +15,7 @@ use crate::{
 };
 
 pub struct InstanceBuilder {
-    pub data: HashMap<String, HashMap<String, Vec<Event>>>,
+    pub data: HashMap<String, HashMap<MidStruct, Vec<Event>>>,
     pub edges: Vec<(EdgeTp, Idx, Idx)>,
 }
 
@@ -28,28 +28,28 @@ impl InstanceBuilder {
     }
 
     fn build(self, ctx: &Context) -> Instance<'_> {
-        let messages: HashMap<String, HashMap<String, usize>> = self
+        let messages: HashMap<String, HashMap<MidStruct, usize>> = self 
             .data
             .iter()
             .map(|(hdl, msgs)| {
                 (
                     hdl.clone(),
                     msgs.iter()
-                        .map(|(mid, evs)| (mid.clone(), evs.len()))
+                        .map(|(mid_struct, evs)| (mid_struct.clone(), evs.len()))
                         .collect(),
                 )
             })
             .collect();
 
-        let msg_ids: Vec<(String, String, String, usize)> = messages
+        let msg_ids: Vec<(String, String, MidStruct, usize)> = messages
             .iter()
             .flat_map(|(hdl, msg)| {
-                msg.iter().flat_map(move |(mid, len)| {
+                msg.iter().flat_map(move |(mid_struct, len)| {
                     (0..*len).map(move |i| {
                         (
-                            format!("{}_{}_{}", hdl, mid, i),
+                            format!("{}_{}_{}", hdl, mid_struct.id, i), //
                             hdl.clone(),
-                            mid.clone(),
+                            mid_struct.clone(),
                             i,
                         )
                     })
@@ -106,7 +106,7 @@ impl InstanceBuilder {
 pub struct Instance<'ctx> {
     z3_ctx: &'ctx Context,
     solver: Solver<'ctx>,
-    events: HashMap<String, HashMap<String, usize>>,
+    events: HashMap<String, HashMap<MidStruct, usize>>,
     msg_type: Sort<'ctx>,
     pub order: FuncDecl<'ctx>,
     consts: HashMap<Idx, Dynamic<'ctx>>,
@@ -125,11 +125,11 @@ impl Instance<'_> {
         // PO
         //println!("Program order");
         for (hdl, msgs) in self.events.iter() {
-            for (mid, evs) in msgs.iter() {
+            for (mid_struct, evs) in msgs.iter() {
                 for i in 1..*evs {
                     //println!("{} {}: {} -> {}", hdl, mid, i-1, i);
-                    let last = (hdl.clone(), mid.clone(), i - 1);
-                    let this = (hdl.clone(), mid.clone(), i);
+                    let last = (hdl.clone(), mid_struct.clone(), i - 1);
+                    let this = (hdl.clone(), mid_struct.clone(), i);
 
                     let constvl = &consts[&last];
                     let constvl2 = &consts[&this];
@@ -214,7 +214,7 @@ impl Instance<'_> {
             ADT::Queue => self.queue_do(solver),
             ADT::Stack => self.stack_do(solver),
             ADT::Register => self.reg_do(solver),
-            ADT::PriorityQueue => self.priority_queue_do(solver), //ADDED
+            ADT::PriorityQueue => self.priority_queue_do(solver),
         }
     }
 
@@ -269,21 +269,16 @@ impl Instance<'_> {
         }
     }
 
-    //ADDED FUNCTION FOR PQ SOLVER
     pub fn priority_queue_do(&self, solver: &Solver) {
         let ctx = self.z3_ctx;
         let consts = &self.consts;
         let hb = &self.order;
-
-        //println!("Adding queue do edges");
-        // do = pb^{-1} . mo . pb
 
         let pb = self
             .edges
             .iter()
             .filter(|(tp, _, _)| *tp == EdgeTp::PB)
             .map(|(_, a, b)| (a, b));
-        // MO is represented by hb. If hb then mo.
 
         let pairs = pb.permutations(2).map(|it| (it[0], it[1]));
 
@@ -296,25 +291,18 @@ impl Instance<'_> {
             ) {
                 if a == c {
                     continue;
-                } // We do not want to add do edges for the same message
+                }
                 if di.0 != bi.0 {
                     continue;
-                } // We need to be on the same handler
-                  //println!("Adding do edge constraint: {:?} -> {:?}", b, d);
+                } 
 
-                // We know:
-                //      a (post) --[pb] -> b (get)
-                //      c (post) --[pb] -> d (get)
-                // Now, if a --[hb] -> c
                 let ac = hb.apply(&[a, c]).as_bool().unwrap();
-                // b --[pb^{-1}]-> a --[hb]-> c --[pb]-> d
-                // b.done --[do]-> d
                 let (bh, bm, bidx) = &bi;
                 let b_done = (bh.clone(), bm.clone(), self.events[bh][bm] - 1);
                 let b_done = &consts[&b_done];
 
                 let bd = hb.apply(&[b_done, d]).as_bool().unwrap();
-                if priority_of(&ai.1) < priority_of(&ci.1) { //CHANGED
+                if priority_of(&ai.1.priority) < priority_of(&ci.1.priority) {
                     solver.assert(&ac.implies(&bd));
                 }
 

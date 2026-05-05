@@ -11,7 +11,7 @@ use clap::Parser;
 use clap_verbosity_flag::Verbosity;
 use itertools::Itertools;
 use lib::{
-    model::{mk_graph, EGraph, EGraphData, EPair, EdgeTp, Event, ExecutionGraph, Idx, ReadResult},
+    model::{mk_graph, EGraph, EGraphData, EPair, EdgeTp, Event, ExecutionGraph, Idx, ReadResult, MidStruct},
     output::{make_file, write_graph},
 };
 
@@ -31,18 +31,18 @@ fn read_file(file: String) -> Result<String, std::io::Error> {
 }
 
 fn add_event(
-    hm: &mut HashMap<String, HashMap<String, Vec<Event>>>,
+    hm: &mut HashMap<String, HashMap<MidStruct, Vec<Event>>>,
     tid: String,
-    mid: String,
+    mid_struct: MidStruct,
     e: Event,
 ) {
     let mevs: &mut Vec<Event> = hm
         .entry(tid.clone())
         .or_default()
-        .entry(mid.clone())
-        .or_insert(vec![Event::Get(mid.clone())]);
+        .entry(mid_struct.clone())
+        .or_insert(vec![Event::Get(mid_struct.id.clone(), mid_struct.priority.clone())]);
     //let last = mevs.last().cloned();
-    if let Event::Get(m) = e {
+    if let Event::Get(m, _) = e {
     } else {
         mevs.push(e);
     }
@@ -111,7 +111,7 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
     let mut var_ids = HashMap::<String, String>::new();
     let mut hdl_of_msg: HashMap<String, String> = HashMap::new();
 
-    let mut evs: HashMap<String, HashMap<String, Vec<Event>>> = HashMap::new();
+    let mut evs: HashMap<String, HashMap<MidStruct, Vec<Event>>> = HashMap::new();
     let mut co_var = HashMap::<String, Idx>::new();
     let mut writers = HashMap::<(String, _), Idx>::new();
 
@@ -130,17 +130,18 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
             hdl_of_msg.insert(tid.to_string(), hdl.to_string());
             evs.entry(hdl.to_string())
                 .or_default()
-                .entry(tid.to_string())
+                .entry(MidStruct {id: tid.to_string(), priority: None}) 
                 .or_default();
 
             if let Some(pre) = pre {
                 evs.entry(hdl.to_string())
                     .or_default()
-                    .entry(tid.to_string())
+                    .entry(MidStruct {id: tid.to_string(), priority: None}) 
                     .or_default()
                     .push(Event::Post(
                         hdl.to_string(),
                         pre.name("mid").unwrap().as_str().to_string(),
+                        None,
                     ));
             } else if let Some(sre) = sre {
                 let var = sre.name("var").unwrap().as_str();
@@ -153,12 +154,12 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
 
                 evs.entry(hdl.to_string())
                     .or_default()
-                    .entry(tid.to_string())
+                    .entry(MidStruct {id: tid.to_string(), priority: None}) 
                     .or_default()
                     .push(evt);
 
-                let i = evs[hdl][tid].len(); // The -1 is counteracted by later adding a get
-                let idx = (hdl.to_string(), tid.to_string(), i);
+                let i = evs[hdl][&MidStruct {id: tid.to_string(), priority: None}].len(); // The -1 is counteracted by later adding a get
+                let idx = (hdl.to_string(), MidStruct {id: tid.to_string(), priority: None}, i);
                 match co_var.entry(var_id.clone()) {
                     Entry::Occupied(mut entry) => {
                         let old = entry.get().clone();
@@ -184,12 +185,12 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
 
                 evs.entry(hdl.to_string())
                     .or_default()
-                    .entry(tid.to_string())
+                    .entry(MidStruct {id: tid.to_string(), priority: None})
                     .or_default()
                     .push(Event::Read(var_id.clone(), val_id.to_string()));
 
-                let i = evs[hdl][tid].len(); // The -1 is counteracted by later adding a get
-                let idx = (hdl.to_string(), tid.to_string(), i);
+                let i = evs[hdl][&MidStruct {id: tid.to_string(), priority: None}].len(); // The -1 is counteracted by later adding a get
+                let idx = (hdl.to_string(), MidStruct {id: tid.to_string(), priority: None}, i);
                 if let Some(idx_of_writer) = writers.get(&(var_id.clone(), val_id)) {
                     edges.push((EdgeTp::RF, idx_of_writer.clone(), idx.clone()));
                 }
@@ -199,17 +200,17 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
 
     // Preprocess trace
     // Remove empty messages
-    let mut new_evs: HashMap<String, HashMap<String, Vec<Event>>> = evs
+    let mut new_evs: HashMap<String, HashMap<MidStruct, Vec<Event>>> = evs 
         .iter()
         .filter_map(|(hdl, msgs)| {
-            let new_msgs: HashMap<String, Vec<Event>> = msgs
+            let new_msgs: HashMap<MidStruct, Vec<Event>> = msgs 
                 .iter()
                 .filter(|(mid, evs)| !evs.is_empty())
                 .map(|(x, y)| {
                     let mut new_evs: Vec<Event> = y.clone();
                     // Add a get event to the start of the message
                     // This is what makes the indices before not be len()-1.
-                    new_evs.insert(0, Event::Get(x.clone()));
+                    new_evs.insert(0, Event::Get(x.id.clone(), x.priority.clone()));
                     (x.clone(), new_evs)
                 })
                 .collect();
@@ -225,12 +226,12 @@ pub fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
     for (hdl, msgs) in new_evs.iter_mut() {
         for (mid, evs) in msgs.iter_mut() {
             for (i, ev) in evs.iter_mut().enumerate() {
-                if let Event::Post(ph, pm) = ev {
+                if let Event::Post(ph, pm, None) = ev {
                     //println!("Post of {}", pm);
                     if let Some(phdl) = hdl_of_msg.get(pm) {
                         *ph = phdl.clone();
                         let idx = (hdl.clone(), mid.clone(), i);
-                        edges.push((EdgeTp::PB, idx, (phdl.clone(), pm.clone(), 0)));
+                        edges.push((EdgeTp::PB, idx, (phdl.clone(), MidStruct {id: pm.clone(), priority: None}, 0)));
                     }
                 }
             }

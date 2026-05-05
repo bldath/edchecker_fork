@@ -12,7 +12,7 @@ use clap::Parser;
 use clap_verbosity_flag::Verbosity;
 use itertools::Itertools;
 use lib::{
-    model::{mk_graph, EGraph, EGraphData, EPair, EdgeTp, Event, ExecutionGraph, Idx, ReadResult},
+    model::{mk_graph, EGraph, EGraphData, EPair, EdgeTp, Event, ExecutionGraph, Idx, ReadResult, MidStruct},
     output::{make_file, write_graph},
 };
 
@@ -30,18 +30,18 @@ fn read_file(file: String) -> Result<String, std::io::Error> {
 }
 
 fn add_event(
-    hm: &mut HashMap<String, HashMap<String, Vec<Event>>>,
+    hm: &mut HashMap<String, HashMap<MidStruct, Vec<Event>>>,
     tid: String,
-    mid: String,
+    mid_struct: MidStruct,
     e: Event,
 ) {
     let mevs: &mut Vec<Event> = hm
         .entry(tid.clone())
         .or_default()
-        .entry(mid.clone())
-        .or_insert(vec![Event::Get(mid.clone())]);
+        .entry(mid_struct.clone())
+        .or_insert(vec![Event::Get(mid_struct.id.clone(), mid_struct.priority.clone())]);
     //let last = mevs.last().cloned();
-    if let Event::Get(m) = e {
+    if let Event::Get(m, _) = e {
     } else {
         mevs.push(e);
     }
@@ -94,7 +94,7 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                 None
             };
             if let Some(e) = ev {
-                add_event(&mut eg, tid.to_string(), mid.clone(), e);
+                add_event(&mut eg, tid.to_string(), MidStruct {id: mid.clone(), priority: None}, e);
             }
         } else if let Some(m) = post_regex.captures(line) {
             let (q, [id, tid, mid]) = m.extract();
@@ -102,8 +102,8 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
             add_event(
                 &mut eg,
                 tid.to_string(),
-                src.clone(),
-                Event::Post("UNKNOWN".into(), mid.to_string()),
+                MidStruct {id: src.clone(), priority: None},
+                Event::Post("UNKNOWN".into(), mid.to_string(), None),
             );
         } else if let Some(m) = call_regex.captures(line) {
             let (q, [id, tid, mid]) = m.extract();
@@ -111,8 +111,8 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
             add_event(
                 &mut eg,
                 tid.to_string(),
-                mid.to_string(),
-                Event::Get(mid.into()),
+                MidStruct{id: mid.to_string(), priority:None},
+                Event::Get(mid.into(), None),
             );
         }
     }
@@ -133,7 +133,7 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                 if let Some(v) = ev.variable() {
                     if thread_local.contains(&v) {
                         to_rmv
-                            .entry((hdl.clone(), mid.clone()))
+                            .entry((hdl.clone(), mid.id.clone())) 
                             .or_default()
                             .push(idx);
                     }
@@ -151,7 +151,7 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
         for idx in vec.iter().rev() {
             eg.entry(hdl.clone())
                 .or_default()
-                .entry(mid.clone())
+                .entry(MidStruct {id: mid.clone(), priority: None})
                 .or_default()
                 .remove(*idx);
         }
@@ -170,8 +170,8 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
                         .iter()
                         .enumerate()
                         .filter_map(|(i, ev)| {
-                            if let Event::Post(ph, pm) = ev {
-                                if !eg.contains_key(ph) || !eg.get(ph).unwrap().contains_key(pm) {
+                            if let Event::Post(ph, pm, None) = ev {
+                                if !eg.contains_key(ph) || !eg.get(ph).unwrap().contains_key(&MidStruct {id: pm.clone(), priority: None}) {
                                     return Some(i);
                                 }
                             }
@@ -203,14 +203,14 @@ fn parse_str(s: String) -> Result<ReadResult, std::io::Error> {
         for (hdl, msgs) in eg.iter() {
             for (mid, evs) in msgs {
                 if evs.len() == 1 {
-                    rm.push((hdl.clone(), mid.clone()));
+                    rm.push((hdl.clone(), mid.id.clone()));
                     changed = true;
                 }
             }
         }
 
         for (hdl, mid) in rm.iter() {
-            eg.entry(hdl.clone()).or_default().remove(mid);
+            eg.entry(hdl.clone()).or_default().remove(&MidStruct {id: mid.clone(), priority: None});
         }
     }
 

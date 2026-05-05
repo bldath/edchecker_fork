@@ -25,7 +25,7 @@ where
         writeln!(f, "rankdir = TB;")?;
         let mut h = vec![];
         for (m, evs) in messages {
-            writeln!(f, "subgraph cluster_{} {{", mk_dot_safe(m))?;
+            writeln!(f, "subgraph cluster_{} {{", mk_dot_safe(&m.id))?; //
             writeln!(f, "rankdir = TB;")?;
             for &ev in evs {
                 writeln!(
@@ -37,7 +37,7 @@ where
                 h.push(ev);
             }
             writeln!(f, "color = \"blue\";")?;
-            writeln!(f, "label = \"Message {}\";", mk_dot_safe(m))?;
+            writeln!(f, "label = \"Message {}\";", mk_dot_safe(&m.id))?; //
             writeln!(f, "}}")?;
         }
         writeln!(f, "label = \"Handler {}\";", mk_dot_safe(handler))?;

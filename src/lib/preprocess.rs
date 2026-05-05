@@ -89,7 +89,7 @@ pub fn quad_fmap<V, E, Q>(
 fn add_pb(g: &mut EGraph) {
     let new_edges: Vec<(NodeIndex, NodeIndex)> = get_pairs(g, |x, y| -> bool {
         match (&g[x], &g[y]) {
-            (EPair(hdl, _, Event::Post(to, sent)), EPair(hdl2, gotten, Event::Get(mid))) => {
+            (EPair(hdl, _, Event::Post(to, sent, prio1)), EPair(hdl2, gotten, Event::Get(mid, prio2))) => {
                 sent == gotten
             }
             _ => false,

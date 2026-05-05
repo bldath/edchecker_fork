@@ -63,7 +63,7 @@ pub fn heuristic_1(g: &mut EGraph, data: &EGraphData) {
 pub fn simple_heuristic_mo(g: &mut EGraph) {
     // If there is a path from one post to another, then we add a MO in that direction.
     let q = pair_fmap(g, |x, y| match (&g[x], &g[y]) {
-        (EPair(hdl1, mid1, Event::Post(rcv1, rm1)), EPair(hdl2, mid2, Event::Post(rcv2, rm2))) => {
+        (EPair(hdl1, mid1, Event::Post(rcv1, rm1, prio1)), EPair(hdl2, mid2, Event::Post(rcv2, rm2, prio2))) => {
             if rcv1 == rcv2 && x != y && has_path_connecting(&g.clone(), x, y, None) {
                 Some((MO, x, y))
             } else {
@@ -141,9 +141,9 @@ pub fn heuristic_3(g: &mut EGraph, data: &EGraphData) {
                         let post1 = &fg[m11].2;
                         let post2 = &fg[m21].2;
 
-                        if let (Event::Post(p1h, p1m), Event::Post(p2h, p2m)) = (post1, post2) {
+                        if let (Event::Post(p1h, p1m, prio1), Event::Post(p2h, p2m, prio2)) = (post1, post2) {
                             //the events are posts
-                            if *p1h == *h2 && *p2h == *h2 && p1m == m3 && p2m == m4 {
+                            if *p1h == *h2 && *p2h == *h2 && p1m == &m3.id && p2m == &m4.id {
                                 // The posts are the right posts
                                 if has_path_connecting(&fg, m11, m21, None) {
                                     return true;
@@ -189,11 +189,11 @@ pub fn heuristic_4(g: &mut EGraph, data: &EGraphData) {
                                 let p1 = &fg[**e1].2;
                                 let p2 = &fg[**e2].2;
 
-                                if let (Event::Post(p1h, p1m), Event::Post(p2h, p2m)) = (p1, p2) {
+                                if let (Event::Post(p1h, p1m, prio1), Event::Post(p2h, p2m, prio2)) = (p1, p2) {
                                     if *p1h == *h2
                                         && *p2h == *h2
-                                        && p1m == m4
-                                        && p2m == m5
+                                        && p1m == &m4.id
+                                        && p2m == &m5.id
                                         && has_path_connecting(&fg, **e31, **e1, None)
                                         && has_path_connecting(&fg, **e2, **e32, None)
                                         && has_path_connecting(&fg, **e1, **e2, None)
@@ -235,7 +235,7 @@ pub fn add_heuristics(g: &mut EGraph, data: &EGraphData, heur: Heuristic, adt: A
                     heuristic_4(g, data);
                 }
                 ADT::Register => (),
-                ADT::PriorityQueue => (),//ADDED
+                ADT::PriorityQueue => (),
             }
         }
     }

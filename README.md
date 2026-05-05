@@ -14,7 +14,7 @@ There are two algorithms included. The first is a naive version that exhaustivel
 cargo run --release --bin <bin> <adt> <heuristics> <trace> 
 ```
 
-where `adt` is one of `multiset`, `queue`, `stack`, or `register`, and `heuristics` is one of `no`, `simple` or `full`.
+where `adt` is one of `multiset`, `queue`, `stack`, `priority-queue`, or `register`, and `heuristics` is one of `no`, `simple` or `full`.
 
 The heuristics only have an effect on `edchecker`.
-The implemented `adt`s are `stack`, `queue` and `multiset`.
+The implemented `adt`s are `stack`, `queue`, `priority-queue` and `multiset`.

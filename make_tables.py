@@ -60,6 +60,7 @@ def getres(ex, adt):
 q = getres(expts, "queue")
 s = getres(expts, "stack")
 m = getres(expts, "multiset")
+p = getres(expts, "priority-queue")
 
 
 def mktable(expts, adt):
@@ -81,7 +82,7 @@ def mktable(expts, adt):
 
     return s
 
-for adt in ["multiset", "queue", "stack"]:
+for adt in ["multiset", "queue", "stack", "priority-queue"]: #ADDED
     with open(f"{adt}.tex", "w") as f:
         f.write(mktable(expts, adt))
 

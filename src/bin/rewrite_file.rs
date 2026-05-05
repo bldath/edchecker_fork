@@ -1,4 +1,4 @@
-use clap::{command, Parser};
+use clap::{Parser};
 use clap_verbosity_flag::Verbosity;
 use lib::{model::mk_graph, output::write_graph, parser::read_file};
 
