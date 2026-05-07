@@ -122,6 +122,7 @@ fn main() -> Result<()> {
     // println!("Queue: {:?}", q_ok);
     // println!("Stack: {:?}", s_ok);
     // println!("Reg: {:?}", r_ok);
+    // println!("{} cases.", n);
 
     Ok(())
 }

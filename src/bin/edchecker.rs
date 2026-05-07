@@ -98,6 +98,9 @@ fn main() -> Result<()> {
     let mut q = read_file(cli.file.clone());
     q.build();
 
+    //println!("{:#?}", q); //DEBUG
+
+
     let (mut g, data) = mk_graph(&q);
     let parsed = Instant::now();
 
