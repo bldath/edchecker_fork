@@ -76,6 +76,7 @@ def search_matches(lines):
     
 
 for i in glob.glob("./traces/*/*.out", recursive=True):
+#for i in glob.glob("./nidhugg/traces/outputs/benchmarks/event-driven/**/*.trace.out", recursive=True):
     with open(i) as f:
         path = i.split('/')
         exp = path[-2]

@@ -82,7 +82,7 @@ def mktable(expts, adt):
 
     return s
 
-for adt in ["multiset", "queue", "stack", "priority-queue"]: #ADDED
+for adt in ["multiset", "queue", "stack", "priority-queue"]:
     with open(f"{adt}.tex", "w") as f:
         f.write(mktable(expts, adt))
 

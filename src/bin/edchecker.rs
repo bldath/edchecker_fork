@@ -100,7 +100,6 @@ fn main() -> Result<()> {
 
     //println!("{:#?}", q); //DEBUG
 
-
     let (mut g, data) = mk_graph(&q);
     let parsed = Instant::now();
 
@@ -122,7 +121,6 @@ fn main() -> Result<()> {
     let num_ev: usize = q
         .events
         .iter()
-        //.map(|x| x.1.iter().map(|y| y.1.len()).sum::<usize>())
         .map(|x| x.1.iter().map(|y| y.1.len()).sum::<usize>())
         .sum();
 

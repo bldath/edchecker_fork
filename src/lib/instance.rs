@@ -301,8 +301,10 @@ impl Instance<'_> {
                 let b_done = (bh.clone(), bm.clone(), self.events[bh][bm] - 1);
                 let b_done = &consts[&b_done];
 
+                //println!("ai = {:?}\nbi = {:?}\nci = {:?}\ndi = {:?}",ai, bi, ci, di); //DEBUG
+
                 let bd = hb.apply(&[b_done, d]).as_bool().unwrap();
-                if priority_of(&ai.1.priority) < priority_of(&ci.1.priority) {
+                if priority_of(&bi.1.priority) < priority_of(&di.1.priority) { //Cannot use ai.1 and ci.1 for they are post events that carry the priority of the outer message, not the relevant message
                     solver.assert(&ac.implies(&bd));
                 }
 

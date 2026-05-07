@@ -25,8 +25,7 @@ pub fn read_file(filename: String) -> ReadResult {
 }
 
 pub fn parse_event(s: &String) -> Option<Event> {
-    //let ev_regex = Regex::new(r"(\w+)\(\s*(\w*)\s*,\s*([\w\.]*)\s*\)").unwrap();
-    let ev_regex = Regex::new(r"(\w+)\(\s*([\w\.]*)\s*,\s*([\w\.]*)\s*(?:,\s*([\w\.]*)\s*)?\)").unwrap(); //CHANGED. FIXED BUG
+    let ev_regex = Regex::new(r"(\w+)\(\s*([\w\.]*)\s*,\s*([\w\.]*)\s*(?:,\s*([\w\.]*)\s*)?\)").unwrap();
     if let Some(c) = ev_regex.captures(s) {
         let op: String = c.get(1).unwrap().as_str().to_lowercase();
         let a1: String = c.get(2).unwrap().as_str().into();

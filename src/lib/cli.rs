@@ -9,7 +9,7 @@ pub enum ADT {
     Queue,
     Stack,
     Register,
-    PriorityQueue, //ADDED
+    PriorityQueue,
 }
 
 #[derive(Parser, Debug)]
